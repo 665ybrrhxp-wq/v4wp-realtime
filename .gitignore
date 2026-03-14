@@ -1,0 +1,7 @@
+.env
+*.pyc
+__pycache__/
+cache/
+data/*.db
+data/*.json
+.claude/
