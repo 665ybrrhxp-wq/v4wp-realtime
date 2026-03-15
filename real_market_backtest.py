@@ -368,7 +368,6 @@ def build_price_filter(df, er_q=66, atr_q=66, lookback=252):
     return price_filter
 
 
-<<<<<<< HEAD
 def smooth_earnings_volume(df, ticker=None, spike_mult=3.0, buffer_days=1, median_window=20):
     """실적발표일 전후 거래량 스무딩 (single-day 스파이크 제거).
 
@@ -438,17 +437,6 @@ def calc_v4_score(df, w=20, divgate_days=3):
     scores=np.zeros(n)
     for i in range(max(60,w),n):
         s_div=raw_div[i] if consec[i]>=divgate_days else 0.0
-=======
-def calc_v4_score(df, w=20):
-    """V4: 3지표(force/div/conc), D config (0.30/0.40/0.30), sq_amp 제거
-    C26: S_Force 정규화를 mean→std 기반으로 변경 (포화율 36%→8% 해소)"""
-    n=len(df)
-    pv_div=calc_pv_divergence(df,w)
-    pv_conc=calc_pv_concordance(df,w); pv_fh=calc_pv_force_macd(df)
-    scores=np.zeros(n)
-    for i in range(max(60,w),n):
-        s_div=np.clip(pv_div.iloc[i]/3,-1,1)
->>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
         s_conc=pv_conc.iloc[i]
         fhr_std=pv_fh.iloc[max(0,i-w):i].std()+1e-10
         s_force=np.clip(pv_fh.iloc[i]/(2*fhr_std),-1,1)
@@ -461,22 +449,14 @@ def calc_v4_score(df, w=20):
     return pd.Series(scores,index=df.index,name='V4')
 
 
-<<<<<<< HEAD
 def calc_v4_subindicators(df, w=20, divgate_days=3):
     """V4 내부 지표값을 매 bar마다 계산하여 DataFrame으로 반환.
     calc_v4_score()와 동일한 DivGate 로직 적용."""
-=======
-def calc_v4_subindicators(df, w=20):
-    """V4 내부 지표값을 매 bar마다 계산하여 DataFrame으로 반환.
-    calc_v4_score()와 동일한 로직이지만 중간 값을 모두 보존.
-    C26: S_Force 정규화를 mean→std 기반으로 변경"""
->>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
     n = len(df)
     pv_div = calc_pv_divergence(df, w)
     pv_conc = calc_pv_concordance(df, w)
     pv_fh = calc_pv_force_macd(df)
 
-<<<<<<< HEAD
     # DivGate: 연속 같은 부호 일수
     raw_div = np.array([np.clip(pv_div.iloc[i] / 3, -1, 1) for i in range(n)])
     consec = np.ones(n)
@@ -491,21 +471,13 @@ def calc_v4_subindicators(df, w=20):
     arr_force = np.zeros(n)
     arr_div = np.zeros(n)
     arr_div_raw = np.zeros(n)
-=======
-    arr_force = np.zeros(n)
-    arr_div = np.zeros(n)
->>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
     arr_conc = np.zeros(n)
     arr_act = np.zeros(n)
     arr_score = np.zeros(n)
 
     for i in range(max(60, w), n):
-<<<<<<< HEAD
         s_div_raw = raw_div[i]
         s_div = s_div_raw if consec[i] >= divgate_days else 0.0
-=======
-        s_div = np.clip(pv_div.iloc[i] / 3, -1, 1)
->>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
         s_conc = pv_conc.iloc[i]
         fhr_std = pv_fh.iloc[max(0, i - w):i].std() + 1e-10
         s_force = np.clip(pv_fh.iloc[i] / (2 * fhr_std), -1, 1)
@@ -517,22 +489,15 @@ def calc_v4_subindicators(df, w=20):
 
         arr_force[i] = s_force
         arr_div[i] = s_div
-<<<<<<< HEAD
         arr_div_raw[i] = s_div_raw
-=======
->>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
         arr_conc[i] = s_conc
         arr_act[i] = act
         arr_score[i] = score
 
     return pd.DataFrame({
         's_force': arr_force,
-<<<<<<< HEAD
         's_div': arr_div, 's_div_raw': arr_div_raw,
         's_conc': arr_conc,
-=======
-        's_div': arr_div, 's_conc': arr_conc,
->>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
         'act': arr_act, 'score': arr_score,
     }, index=df.index)
 
@@ -603,11 +568,7 @@ def detect_signal_events(score, th=0.15, cooldown=5):
     - bottom_signal: score > th*0.5 연속 구간 (매수 기회)
     cooldown: 이벤트 종료 후 N일 내 재발생은 같은 이벤트로 병합
 
-<<<<<<< HEAD
     Returns: list of dict {type, start_idx, end_idx, peak_idx, peak_val, start_val, duration}
-=======
-    Returns: list of dict {type, start_idx, end_idx, peak_idx, peak_val}
->>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
     """
     arr = score.values
     n = len(arr)
@@ -642,13 +603,9 @@ def detect_signal_events(score, th=0.15, cooldown=5):
                         break
             events.append({
                 'type': 'top', 'start_idx': start, 'end_idx': end,
-<<<<<<< HEAD
                 'peak_idx': peak_idx, 'peak_val': peak_val,
                 'start_val': arr[start],
                 'duration': end - start + 1,
-=======
-                'peak_idx': peak_idx, 'peak_val': peak_val
->>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
             })
         else:
             i += 1
@@ -680,13 +637,9 @@ def detect_signal_events(score, th=0.15, cooldown=5):
                         break
             events.append({
                 'type': 'bottom', 'start_idx': start, 'end_idx': end,
-<<<<<<< HEAD
                 'peak_idx': peak_idx, 'peak_val': peak_val,
                 'start_val': arr[start],
                 'duration': end - start + 1,
-=======
-                'peak_idx': peak_idx, 'peak_val': peak_val
->>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
             })
         else:
             i += 1
@@ -831,11 +784,7 @@ def calc_forward_returns(events, df, horizons=(5, 10, 20, 40, 60)):
 
     Returns:
         list[dict] — 각 dict:
-<<<<<<< HEAD
           type, peak_idx, peak_date, peak_price, peak_val, start_val,
-=======
-          type, peak_idx, peak_date, peak_price, peak_val,
->>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
           forward_returns{h: %}, mfe{h: %}, mae{h: %},
           grade ('Strong'|'Moderate'|'Weak'|'Failed'),
           truncated (bool), available_days (int)
@@ -907,10 +856,7 @@ def calc_forward_returns(events, df, horizons=(5, 10, 20, 40, 60)):
             'peak_date': df.index[peak_idx].strftime('%Y-%m-%d'),
             'peak_price': peak_price,
             'peak_val': ev['peak_val'],
-<<<<<<< HEAD
             'start_val': ev.get('start_val', None),
-=======
->>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
             'forward_returns': fr,
             'mfe': mfe,
             'mae': mae,

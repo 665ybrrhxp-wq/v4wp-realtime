@@ -25,7 +25,6 @@
     "atr_quantile": 55,
     "lookback": 252,
     "data_years": 3,
-<<<<<<< HEAD
     "confirm_days": 3,
     "buy_confirmed_pct": 1.00,
     "sell_confirm_days": 3,
@@ -35,14 +34,5 @@
     "earnings_vol_filter": true,
     "buy_dd_lookback": 20,
     "buy_dd_threshold": 0.05
-=======
-    "strong_buy_th": 0.25,
-    "strong_sell_th": -0.25,
-    "buy_normal_pct": 0.40,
-    "buy_strong_pct": 0.60,
-    "sell_normal_pct": 0.05,
-    "sell_strong_pct": 0.10,
-    "late_sell_drop_th": 0.05
->>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
   }
 }
