@@ -1,0 +1,38 @@
+{
+  "tickers": {
+    "TSLA":  {"sector": "Tech"},
+    "PLTR":  {"sector": "Tech"},
+    "NVDA":  {"sector": "Tech"},
+    "AVGO":  {"sector": "Tech"},
+    "AMZN":  {"sector": "Tech"},
+    "GOOGL": {"sector": "Tech"},
+    "JOBY":  {"sector": "Growth"},
+    "HIMS":  {"sector": "Growth"},
+    "TEM":   {"sector": "Growth"},
+    "RKLB":  {"sector": "Growth"},
+    "PGY":   {"sector": "Growth"},
+    "COIN":  {"sector": "Fintech"},
+    "HOOD":  {"sector": "Fintech"},
+    "IONQ":  {"sector": "Quantum"},
+    "PL":    {"sector": "Space"}
+  },
+  "benchmarks": ["QQQ", "VOO"],
+  "params": {
+    "v4_window": 20,
+    "signal_threshold": 0.15,
+    "cooldown": 5,
+    "er_quantile": 66,
+    "atr_quantile": 55,
+    "lookback": 252,
+    "data_years": 3,
+    "confirm_days": 3,
+    "buy_confirmed_pct": 1.00,
+    "sell_confirm_days": 3,
+    "sell_confirmed_pct": 0.05,
+    "late_sell_drop_th": 0.05,
+    "divgate_days": 3,
+    "earnings_vol_filter": true,
+    "buy_dd_lookback": 20,
+    "buy_dd_threshold": 0.05
+  }
+}

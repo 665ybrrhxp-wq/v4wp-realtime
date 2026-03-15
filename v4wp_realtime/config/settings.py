@@ -1,0 +1,37 @@
+"""환경변수 기반 설정 로딩 (.env 파일 자동 로드)"""
+import os
+import json
+from pathlib import Path
+
+# .env 파일 자동 로드
+try:
+    from dotenv import load_dotenv
+    _env_path = Path(__file__).resolve().parent.parent / '.env'
+    load_dotenv(_env_path)
+except ImportError:
+    pass  # python-dotenv 미설치 시 os.environ만 사용
+
+
+# 프로젝트 루트
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+REALTIME_ROOT = Path(__file__).resolve().parent.parent
+
+# 데이터 경로
+DATA_DIR = PROJECT_ROOT / 'data'
+DB_PATH = DATA_DIR / 'v4wp.db'
+SIGNALS_JSON = DATA_DIR / 'signals_history.json'
+CACHE_DIR = PROJECT_ROOT / 'cache'
+
+# Watchlist
+WATCHLIST_PATH = REALTIME_ROOT / 'config' / 'watchlist.json'
+
+
+def load_watchlist():
+    with open(WATCHLIST_PATH, 'r') as f:
+        return json.load(f)
+
+
+# API Keys (환경변수에서 로딩)
+TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID', '')
+CLAUDE_API_KEY = os.environ.get('CLAUDE_API_KEY', '')
