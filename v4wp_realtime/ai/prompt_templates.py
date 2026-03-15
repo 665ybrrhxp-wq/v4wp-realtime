@@ -9,8 +9,13 @@ Reply in Korean only. No emoji. No english."""
 
 SIGNAL_PROMPT_TEMPLATE = """Signal:
 - Ticker: {ticker} ({sector})
+<<<<<<< HEAD
 - Type: {signal_type} ({signal_label}) [{signal_tier}]
 - Entry Score: {start_val:.3f} (peak: {peak_val:.3f})
+=======
+- Type: {signal_type} ({signal_label})
+- Score: {peak_val:.3f}
+>>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
 - Price: ${close_price:.2f}
 - Sub-indicators: Force={s_force:.2f}, Div={s_div:.2f}, Conc={s_conc:.2f}
 - Date: {peak_date}
@@ -36,15 +41,21 @@ def build_prompt(signal, context=None):
         score_trend = '\n'.join(trend_lines) if trend_lines else 'N/A'
 
     signal_label = '매수 신호' if signal['signal_type'] == 'bottom' else '매도 신호'
+<<<<<<< HEAD
     signal_tier = signal.get('signal_tier', 'NORMAL')
+=======
+>>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
 
     return SIGNAL_PROMPT_TEMPLATE.format(
         ticker=signal['ticker'],
         sector=signal.get('sector', ''),
         signal_type=signal['signal_type'],
         signal_label=signal_label,
+<<<<<<< HEAD
         signal_tier=signal_tier,
         start_val=signal.get('start_val', 0),
+=======
+>>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
         peak_val=signal['peak_val'],
         close_price=signal['close_price'],
         s_force=signal['s_force'],

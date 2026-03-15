@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 """real_market_backtest.py 핵심 함수 래핑 + Duration 기반 신호 분류 (DivGate_3d, Earnings Vol Filter)"""
+=======
+"""real_market_backtest.py 핵심 함수 래핑 + C25 신호 분류"""
+>>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
 import sys
 from pathlib import Path
 
@@ -14,7 +18,10 @@ from real_market_backtest import (
     detect_signal_events,
     build_price_filter,
     calc_forward_returns,
+<<<<<<< HEAD
     smooth_earnings_volume,
+=======
+>>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
 )
 
 
@@ -29,18 +36,27 @@ def fetch_data(ticker, years=3, cache_dir=None):
 
 
 def analyze_ticker(ticker, df, params):
+<<<<<<< HEAD
     """단일 종목 분석: 스코어 + 신호 + 필터 + BUY_DD_GATE + LATE_SELL_BLOCK 적용.
 
     BUY_DD_GATE: N일 고점 대비 dd_threshold% 이상 하락일 때만 매수 신호 통과.
     LATE_SELL_BLOCK: 20일 고점 대비 drop_th% 이상 하락 시 매도 차단.
+=======
+    """단일 종목 분석: 스코어 + 신호 + 필터 + LATE_SELL_BLOCK 적용.
+>>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
 
     Returns: dict with keys:
         score: V4 score Series
         subindicators: DataFrame (s_force, s_div, s_conc, act, score)
         all_events: list of all signal events
+<<<<<<< HEAD
         filtered_events: list of price-filtered + dd_gated + late_sell_blocked events
         blocked_sells: list of blocked sell events (for reference)
         blocked_buys: list of dd-gated buy events (for reference)
+=======
+        filtered_events: list of price-filtered + late_sell_blocked events
+        blocked_sells: list of blocked sell events (for reference)
+>>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
         price_filter_fn: the filter function
     """
     w = params.get('v4_window', 20)
@@ -50,6 +66,7 @@ def analyze_ticker(ticker, df, params):
     atr_q = params.get('atr_quantile', 55)
     lb = params.get('lookback', 252)
     late_sell_drop_th = params.get('late_sell_drop_th', 0.05)
+<<<<<<< HEAD
     divgate_days = params.get('divgate_days', 3)
     earnings_vol_filter = params.get('earnings_vol_filter', True)
     buy_dd_lookback = params.get('buy_dd_lookback', 20)
@@ -61,11 +78,17 @@ def analyze_ticker(ticker, df, params):
 
     score = calc_v4_score(df, w=w, divgate_days=divgate_days)
     subind = calc_v4_subindicators(df, w=w, divgate_days=divgate_days)
+=======
+
+    score = calc_v4_score(df, w=w)
+    subind = calc_v4_subindicators(df, w=w)
+>>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
     events = detect_signal_events(score, th=th, cooldown=cd)
     pf = build_price_filter(df, er_q=er_q, atr_q=atr_q, lookback=lb)
 
     filtered = [e for e in events if pf(e['peak_idx'])]
 
+<<<<<<< HEAD
     # 롤링 고점 계산 (매수 DD 게이트 + 매도 LATE_SELL_BLOCK 공용)
     close = df['Close'].values
     rolling_high_sell = df['Close'].rolling(20, min_periods=1).max().values
@@ -96,6 +119,24 @@ def analyze_ticker(ticker, df, params):
                 blocked_buys.append(e)
                 continue
 
+=======
+    # LATE_SELL_BLOCK: 20일 롤링 고점 대비 drop_th% 이상 하락 시 매도 차단
+    close = df['Close'].values
+    rolling_high_20 = df['Close'].rolling(20, min_periods=1).max().values
+
+    active_events = []
+    blocked_sells = []
+    for e in filtered:
+        if e['type'] == 'top':
+            pidx = e['peak_idx']
+            if pidx < len(close):
+                price = close[pidx]
+                rh = rolling_high_20[pidx]
+                drop_pct = (rh - price) / rh if rh > 0 else 0
+                if drop_pct > late_sell_drop_th:
+                    blocked_sells.append(e)
+                    continue
+>>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
         active_events.append(e)
 
     return {
@@ -104,12 +145,16 @@ def analyze_ticker(ticker, df, params):
         'all_events': events,
         'filtered_events': active_events,
         'blocked_sells': blocked_sells,
+<<<<<<< HEAD
         'blocked_buys': blocked_buys,
+=======
+>>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
         'price_filter_fn': pf,
     }
 
 
 def classify_signal(ev, params):
+<<<<<<< HEAD
     """Duration 기반 신호 분류 (매수/매도 모두 duration 확인).
 
     - 매수: duration >= confirm_days -> CONFIRMED (100% 매수)
@@ -160,6 +205,36 @@ def classify_signal(ev, params):
                 'label': 'SELL (PENDING)',
                 'action_pct': 0.0,
             }
+=======
+    """C25 신호 강도 분류.
+
+    Returns: dict with:
+        is_strong: bool
+        label: str ('STRONG BUY', 'BUY', 'STRONG SELL', 'SELL')
+        action_pct: float (매수/매도 비율)
+    """
+    strong_buy_th = params.get('strong_buy_th', 0.25)
+    strong_sell_th = params.get('strong_sell_th', -0.25)
+    buy_normal = params.get('buy_normal_pct', 0.40)
+    buy_strong = params.get('buy_strong_pct', 0.60)
+    sell_normal = params.get('sell_normal_pct', 0.05)
+    sell_strong = params.get('sell_strong_pct', 0.10)
+
+    if ev['type'] == 'bottom':
+        is_strong = abs(ev['peak_val']) >= strong_buy_th
+        return {
+            'is_strong': is_strong,
+            'label': 'STRONG BUY' if is_strong else 'BUY',
+            'action_pct': buy_strong if is_strong else buy_normal,
+        }
+    else:
+        is_strong = ev['peak_val'] <= strong_sell_th
+        return {
+            'is_strong': is_strong,
+            'label': 'STRONG SELL' if is_strong else 'SELL',
+            'action_pct': sell_strong if is_strong else sell_normal,
+        }
+>>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
 
 
 def get_latest_score_data(df, subind, n_days=1):

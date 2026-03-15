@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 """일일 스캔 오케스트레이션 (V4 Duration 기반 알고리즘)"""
+=======
+"""일일 스캔 오케스트레이션 (C25 알고리즘)"""
+>>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -13,6 +17,7 @@ from v4wp_realtime.data.store import (
 
 
 def run_scan(alert_fn=None, commentary_fn=None, dry_run=False):
+<<<<<<< HEAD
     """전체 워치리스트 스캔 (V4 Duration 기반 알고리즘).
 
     파이프라인:
@@ -26,6 +31,16 @@ def run_scan(alert_fn=None, commentary_fn=None, dry_run=False):
          - 매수: 3일 이상 지속 확인(CONFIRMED) → 100% 풀매수
          - 매도: 3일 이상 지속 확인(SELL_CONFIRMED) → 5% 매도
          - 미확인(PENDING) → 무시
+=======
+    """전체 워치리스트 스캔 (C25 알고리즘).
+
+    C25 변경사항:
+      - ATR quantile: 55 (relaxed)
+      - LATE_SELL_BLOCK: 20일 고점 대비 5% 이상 하락 시 매도 차단
+      - 강한 매수 임계값: |peak_val| >= 0.25
+      - 매수 비율: 일반 40% / 강한 60%
+      - 워치리스트에서 PGY, BA, INTC 제거됨
+>>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
 
     Args:
         alert_fn: callable(signal_dict) -> bool, 알림 전송 함수
@@ -52,7 +67,10 @@ def run_scan(alert_fn=None, commentary_fn=None, dry_run=False):
         'errors': [],
         'new_signals': [],
         'blocked_sells': [],
+<<<<<<< HEAD
         'blocked_buys': [],
+=======
+>>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
         'scores': [],
     }
 
@@ -89,6 +107,7 @@ def run_scan(alert_fn=None, commentary_fn=None, dry_run=False):
                     'close_price': float(df['Close'].iloc[ev['peak_idx']]),
                 })
 
+<<<<<<< HEAD
             # 차단된 매수 신호 기록 (DD 게이트 미통과)
             for ev in analysis.get('blocked_buys', []):
                 peak_date = df.index[ev['peak_idx']].strftime('%Y-%m-%d')
@@ -99,6 +118,8 @@ def run_scan(alert_fn=None, commentary_fn=None, dry_run=False):
                     'close_price': float(df['Close'].iloc[ev['peak_idx']]),
                 })
 
+=======
+>>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
             # 최근 신호 추출 (필터 적용된 것만)
             recent = extract_recent_events(analysis['filtered_events'], df, lookback_days=10)
             sector = tickers.get(ticker, {}).get('sector', 'Benchmark')
@@ -107,6 +128,7 @@ def run_scan(alert_fn=None, commentary_fn=None, dry_run=False):
                 peak_idx = ev['peak_idx']
                 subind = analysis['subindicators']
 
+<<<<<<< HEAD
                 # Duration 기반 신호 분류
                 classification = classify_signal(ev, params)
 
@@ -114,14 +136,22 @@ def run_scan(alert_fn=None, commentary_fn=None, dry_run=False):
                 if classification['tier'] == 'PENDING':
                     continue
 
+=======
+                # C25 신호 분류
+                classification = classify_signal(ev, params)
+
+>>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
                 signal_data = {
                     'ticker': ticker,
                     'sector': sector,
                     'signal_type': ev['type'],
                     'peak_date': ev['peak_date'],
                     'peak_val': float(ev['peak_val']),
+<<<<<<< HEAD
                     'start_val': float(ev.get('start_val', 0)),
                     'duration': ev.get('duration', ev['end_idx'] - ev['start_idx'] + 1),
+=======
+>>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
                     'close_price': float(df['Close'].iloc[peak_idx]),
                     'detected_date': today,
                     'notified': 0,
@@ -131,8 +161,12 @@ def run_scan(alert_fn=None, commentary_fn=None, dry_run=False):
                     's_conc': float(subind['s_conc'].iloc[peak_idx]),
                     'er': None,
                     'atr_pct': None,
+<<<<<<< HEAD
                     # Duration 기반 분류
                     'signal_tier': classification['tier'],
+=======
+                    # C25 추가 필드
+>>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
                     'is_strong': classification['is_strong'],
                     'signal_label': classification['label'],
                     'action_pct': classification['action_pct'],

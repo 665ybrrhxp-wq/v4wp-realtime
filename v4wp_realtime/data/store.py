@@ -47,6 +47,7 @@ def insert_signal_event(conn, event):
     try:
         conn.execute(
             """INSERT INTO signal_events
+<<<<<<< HEAD
                (ticker, signal_type, peak_date, peak_val, start_val, close_price,
                 detected_date, notified, commentary, s_force, s_div, s_conc, er, atr_pct,
                 signal_tier, action_pct)
@@ -54,6 +55,13 @@ def insert_signal_event(conn, event):
                        :detected_date, :notified, :commentary,
                        :s_force, :s_div, :s_conc, :er, :atr_pct,
                        :signal_tier, :action_pct)""",
+=======
+               (ticker, signal_type, peak_date, peak_val, close_price,
+                detected_date, notified, commentary, s_force, s_div, s_conc, er, atr_pct)
+               VALUES (:ticker, :signal_type, :peak_date, :peak_val, :close_price,
+                       :detected_date, :notified, :commentary,
+                       :s_force, :s_div, :s_conc, :er, :atr_pct)""",
+>>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
             event
         )
         conn.commit()

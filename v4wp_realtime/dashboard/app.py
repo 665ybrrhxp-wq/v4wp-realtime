@@ -135,20 +135,29 @@ def page_signals():
     df = df[df['signal_type'].isin(sig_types)]
 
     # 표시
+<<<<<<< HEAD
     display_cols = ['peak_date', 'ticker', 'signal_type', 'signal_tier', 'start_val', 'peak_val',
                     'action_pct', 'close_price', 's_force', 's_div', 's_conc', 'commentary']
     # 기존 DB에 새 컬럼이 없을 수 있으므로 안전하게 필터
     display_cols = [c for c in display_cols if c in df.columns]
+=======
+    display_cols = ['peak_date', 'ticker', 'signal_type', 'peak_val', 'close_price',
+                    's_force', 's_div', 's_conc', 'commentary']
+>>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
     st.dataframe(
         df[display_cols],
         column_config={
             'peak_date': st.column_config.TextColumn('Date'),
             'ticker': st.column_config.TextColumn('Ticker'),
             'signal_type': st.column_config.TextColumn('Type'),
+<<<<<<< HEAD
             'signal_tier': st.column_config.TextColumn('Tier'),
             'start_val': st.column_config.NumberColumn('Entry Score', format='%.3f'),
             'peak_val': st.column_config.NumberColumn('Peak Score', format='%.3f'),
             'action_pct': st.column_config.NumberColumn('Action %', format='%.0f%%'),
+=======
+            'peak_val': st.column_config.NumberColumn('Score', format='%.3f'),
+>>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
             'close_price': st.column_config.NumberColumn('Price', format='$%.2f'),
             's_force': st.column_config.NumberColumn('Force', format='%.2f'),
             's_div': st.column_config.NumberColumn('Div', format='%.2f'),

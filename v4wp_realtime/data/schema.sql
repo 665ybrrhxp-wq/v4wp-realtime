@@ -21,7 +21,10 @@ CREATE TABLE IF NOT EXISTS signal_events (
     signal_type TEXT NOT NULL,
     peak_date TEXT NOT NULL,
     peak_val REAL,
+<<<<<<< HEAD
     start_val REAL,
+=======
+>>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
     close_price REAL,
     detected_date TEXT,
     notified INTEGER DEFAULT 0,
@@ -31,8 +34,11 @@ CREATE TABLE IF NOT EXISTS signal_events (
     s_conc REAL,
     er REAL,
     atr_pct REAL,
+<<<<<<< HEAD
     signal_tier TEXT,
     action_pct REAL,
+=======
+>>>>>>> 187a32a6aa96e6dada11f8fbf85eaa48a75ec451
     UNIQUE(ticker, signal_type, peak_date)
 );
 
