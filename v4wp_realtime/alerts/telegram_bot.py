@@ -26,15 +26,15 @@ def _send_message(text, parse_mode=None):
 
 
 def send_signal_alert(signal):
-    """개별 신호 알림 전송"""
+    """개별 신호 알림 전송 (HTML)"""
     msg = format_signal_message(signal)
-    return _send_message(msg)
+    return _send_message(msg, parse_mode='HTML')
 
 
 def send_scan_summary(results):
-    """스캔 결과 요약 전송"""
+    """스캔 결과 요약 전송 (HTML)"""
     msg = format_scan_summary(results)
-    return _send_message(msg)
+    return _send_message(msg, parse_mode='HTML')
 
 
 def send_test_message():

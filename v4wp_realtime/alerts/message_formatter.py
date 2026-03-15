@@ -1,117 +1,101 @@
-"""Telegram 메시지 포맷팅 (Duration 기반 확인 매수/매도)"""
+"""Telegram 메시지 포맷팅 (HTML mode)"""
 
 
 def format_signal_message(signal):
-    """신호 데이터를 Telegram 카드형 메시지로 포맷.
-
-    Args:
-        signal: dict with keys: ticker, sector, signal_type, peak_val, start_val,
-                duration, close_price, s_force, s_div, s_conc, peak_date, commentary,
-                signal_label, signal_tier, is_strong, action_pct
-    """
-    label = signal.get('signal_label', signal['signal_type'].upper())
+    """개별 신호 → Telegram HTML 카드."""
     tier = signal.get('signal_tier', 'CONFIRMED')
     action_pct = signal.get('action_pct')
     sig_type = signal['signal_type']
     duration = signal.get('duration', 0)
+    score_val = signal.get('start_val', signal.get('peak_val', 0))
 
     if sig_type == 'bottom':
-        header_emoji = '\U0001f525' if tier == 'CONFIRMED' else '\U0001f7e2'
-        action_text = f'\uac00\uc6a9\uc790\uae08\uc758 {action_pct:.0%} \ub9e4\uc218' if action_pct else ''
+        emoji = '\U0001f7e2'  # 🟢
+        action_text = f'가용자금의 {action_pct:.0%} 매수' if action_pct else ''
+        direction = 'BUY'
     else:
-        header_emoji = '\U0001f534' if tier == 'SELL_CONFIRMED' else '\U0001f7e1'
-        action_text = f'\ubcf4\uc720\ub7c9\uc758 {action_pct:.0%} \ub9e4\ub3c4' if action_pct else ''
+        emoji = '\U0001f534'  # 🔴
+        action_text = f'보유량의 {action_pct:.0%} 매도' if action_pct else ''
+        direction = 'SELL'
 
-    score_val = signal.get('start_val', signal.get('peak_val', 0))
-    score_bar = _score_bar(score_val)
+    # 스코어 강도 바 (5칸)
+    bar = _score_dots(score_val)
 
     lines = [
-        '\u2501' * 20,
-        f'{header_emoji} {label}',
-        '\u2501' * 20,
+        f'{emoji} <b>{signal["ticker"]}</b>  {direction}',
         '',
-        f'\U0001f4cc {signal["ticker"]} ({signal.get("sector", "")})',
-        f'\U0001f4b2 ${signal["close_price"]:.2f}',
+        f'  가격    <code>${signal["close_price"]:.2f}</code>',
+        f'  스코어  <code>{score_val:+.3f}</code>  {bar}',
+        f'  지속    <code>{duration}일</code>',
         '',
-        f'\U0001f4ca V4 Score: {score_val:.3f}  {score_bar}',
-        f'\u23f1 Duration: {duration}d',
-        f'\u2523 Force:  {signal["s_force"]:+.2f}',
-        f'\u2523 Div:    {signal["s_div"]:+.2f}',
-        f'\u2517 Conc:   {signal["s_conc"]:+.2f}',
+        f'  Force <code>{signal["s_force"]:+.2f}</code>  '
+        f'Div <code>{signal["s_div"]:+.2f}</code>  '
+        f'Conc <code>{signal["s_conc"]:+.2f}</code>',
     ]
 
     if action_text:
         lines.append('')
-        lines.append(f'\U0001f4b0 Action: {action_text}')
+        lines.append(f'  \u27a1 <b>{action_text}</b>')
 
-    lines.append(f'\U0001f4c5 {signal["peak_date"]}')
+    lines.append(f'  {signal["peak_date"]}')
 
     if signal.get('commentary'):
         lines.append('')
-        lines.append(f'\U0001f4ac {signal["commentary"]}')
-
-    lines.append('\u2501' * 20)
+        lines.append(f'  <i>{signal["commentary"]}</i>')
 
     return '\n'.join(lines)
 
 
-def _score_bar(score, width=10):
-    """스코어를 시각적 바로 표현. -1 ~ +1 범위."""
-    clamped = max(-1.0, min(1.0, score))
-    mid = width // 2
-    pos = int((clamped + 1) / 2 * width)
-    bar = ['\u2591'] * width
-    bar[mid] = '\u2502'
-    if pos < mid:
-        for i in range(pos, mid):
-            bar[i] = '\u2593'
-    elif pos > mid:
-        for i in range(mid + 1, min(pos + 1, width)):
-            bar[i] = '\u2593'
-    return '[' + ''.join(bar) + ']'
+def _score_dots(score):
+    """스코어 강도를 5단계 도트로 표현."""
+    abs_s = min(abs(score), 1.0)
+    filled = round(abs_s * 5)
+    if score >= 0:
+        return '\U0001f7e2' * filled + '\u26aa' * (5 - filled)  # 🟢⚪
+    else:
+        return '\U0001f534' * filled + '\u26aa' * (5 - filled)  # 🔴⚪
 
 
 def format_scan_summary(results):
-    """스캔 결과 요약 메시지 (Duration 기반 카드형)"""
+    """스캔 요약 → Telegram HTML 카드."""
     n_new = len(results['new_signals'])
     n_err = len(results['errors'])
-    n_blocked = len(results.get('blocked_sells', []))
+    n_blocked_sells = len(results.get('blocked_sells', []))
     n_blocked_buys = len(results.get('blocked_buys', []))
 
     buy_signals = [s for s in results['new_signals'] if s.get('signal_type') == 'bottom']
     sell_signals = [s for s in results['new_signals'] if s.get('signal_type') == 'top']
 
     lines = [
-        '\u2501' * 20,
-        f'\U0001f4ca V4_wP Daily Report',
-        '\u2501' * 20,
+        f'\U0001f4ca <b>V4_wP Daily Report</b>',
+        f'{results["date"]}  |  {results["scanned"]}종목  |  {results["duration_sec"]:.0f}s',
         '',
-        f'\U0001f4c5 {results["date"]}',
-        f'\U0001f50d \uc2a4\uce94: {results["scanned"]}\uc885\ubaa9 | \uc18c\uc694: {results["duration_sec"]:.1f}s',
     ]
 
     if n_err > 0:
-        lines.append(f'\u26a0\ufe0f \uc624\ub958: {n_err}\uac74')
-
-    lines.append('')
+        lines.append(f'\u26a0 오류 {n_err}건')
 
     if n_new > 0:
-        lines.append(f'\U0001f4e2 \uc2e0\uaddc \uc2e0\ud638: {n_new}\uac74')
         if buy_signals:
-            tickers = ', '.join(f'{s["ticker"]}({s.get("duration",0)}d)' for s in buy_signals)
-            lines.append(f'  \U0001f525 \ub9e4\uc218(CONFIRMED): {len(buy_signals)}\uac74 ({tickers})')
+            tickers = ', '.join(
+                f'<b>{s["ticker"]}</b>({s.get("duration",0)}d)' for s in buy_signals
+            )
+            lines.append(f'\U0001f7e2 매수 {len(buy_signals)}건: {tickers}')
         if sell_signals:
-            tickers = ', '.join(f'{s["ticker"]}({s.get("duration",0)}d)' for s in sell_signals)
-            lines.append(f'  \U0001f534 \ub9e4\ub3c4(CONFIRMED): {len(sell_signals)}\uac74 ({tickers})')
+            tickers = ', '.join(
+                f'<b>{s["ticker"]}</b>({s.get("duration",0)}d)' for s in sell_signals
+            )
+            lines.append(f'\U0001f534 매도 {len(sell_signals)}건: {tickers}')
     else:
-        lines.append('\u2705 \uc624\ub298 \uc2e0\uaddc \uc2e0\ud638 \uc5c6\uc74c')
+        lines.append('\u2705 신규 신호 없음')
 
+    # 차단 요약 (한 줄로)
+    blocked_parts = []
     if n_blocked_buys > 0:
-        lines.append(f'  \U0001f6ab \ub9e4\uc218 \ucc28\ub2e8(DD_GATE): {n_blocked_buys}\uac74')
-    if n_blocked > 0:
-        lines.append(f'  \U0001f6ab \ub9e4\ub3c4 \ucc28\ub2e8(LATE_SELL): {n_blocked}\uac74')
-
-    lines.append('')
-    lines.append('\u2501' * 20)
+        blocked_parts.append(f'매수 {n_blocked_buys}')
+    if n_blocked_sells > 0:
+        blocked_parts.append(f'매도 {n_blocked_sells}')
+    if blocked_parts:
+        lines.append(f'\U0001f6ab 차단: {" / ".join(blocked_parts)}건')
 
     return '\n'.join(lines)
