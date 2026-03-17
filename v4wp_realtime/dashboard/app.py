@@ -88,8 +88,6 @@ def page_watchlist():
             return '-'
         if s > 0.075:
             return '\U0001f7e2 BUY'
-        elif s < -0.15:
-            return '\U0001f534 SELL'
         return '\u26aa Neutral'
 
     latest['status'] = latest.apply(score_status, axis=1)
@@ -130,9 +128,8 @@ def page_signals():
 
     st.caption(f'{len(df)} signals found')
 
-    # 타입별 필터
-    sig_types = st.multiselect('Signal Type', ['bottom', 'top'], default=['bottom', 'top'])
-    df = df[df['signal_type'].isin(sig_types)]
+    # 매수 신호만 표시
+    df = df[df['signal_type'] == 'bottom']
 
     # 표시
     display_cols = ['peak_date', 'ticker', 'signal_type', 'signal_tier', 'start_val', 'peak_val',
@@ -161,9 +158,8 @@ def page_signals():
 
     # 종목별 신호 수
     st.subheader('Signals by Ticker')
-    counts = df.groupby(['ticker', 'signal_type']).size().reset_index(name='count')
-    fig = px.bar(counts, x='ticker', y='count', color='signal_type',
-                 barmode='group', color_discrete_map={'bottom': '#22c55e', 'top': '#ef4444'})
+    counts = df.groupby('ticker').size().reset_index(name='count')
+    fig = px.bar(counts, x='ticker', y='count', color_discrete_sequence=['#22c55e'])
     fig.update_layout(height=350, margin=dict(t=20))
     st.plotly_chart(fig, use_container_width=True)
 

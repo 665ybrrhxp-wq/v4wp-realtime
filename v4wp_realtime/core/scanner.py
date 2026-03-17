@@ -13,18 +13,16 @@ from v4wp_realtime.data.store import (
 
 
 def run_scan(alert_fn=None, commentary_fn=None, dry_run=False):
-    """전체 워치리스트 스캔 (V4 Duration 기반 알고리즘).
+    """전체 워치리스트 스캔 (VN60+GEO-OP 알고리즘, 매수 전용).
 
     파이프라인:
       1. smooth_earnings_volume: 실적발표일 ±1일 비정상 거래량 보정
-      2. calc_v4_score: DivGate_3d 적용된 V4 스코어 산출
-      3. detect_signal_events: threshold 기반 신호 감지
-      4. build_price_filter: ER + ATR 필터 (비정상 구간 제외)
-      5. BUY_DD_GATE: 20일 고점 대비 5% 이상 하락일 때만 매수 허용
-      6. LATE_SELL_BLOCK: 20일 고점 대비 5% 이상 하락 시 매도 차단
-      7. classify_signal (Duration 기반):
-         - 매수: 3일 이상 지속 확인(CONFIRMED) → 100% 풀매수
-         - 매도: 3일 이상 지속 확인(SELL_CONFIRMED) → 5% 매도
+      2. calc_v4_score: AND-GEO 방식 (S_Force×S_Div 기하평균) 스코어 산출
+      3. detect_signal_events: threshold(0.05) 기반 신호 감지
+      4. build_price_filter: ER<80% + ATR>40% 필터
+      5. BUY_DD_GATE: 20일 고점 대비 3% 이상 하락일 때만 매수 허용
+      6. classify_signal (Duration 기반):
+         - 1일 이상 지속 확인(CONFIRMED) → 100% 풀매수
          - 미확인(PENDING) → 무시
 
     Args:
@@ -51,7 +49,6 @@ def run_scan(alert_fn=None, commentary_fn=None, dry_run=False):
         'scanned': 0,
         'errors': [],
         'new_signals': [],
-        'blocked_sells': [],
         'blocked_buys': [],
         'scores': [],
     }
@@ -78,16 +75,6 @@ def run_scan(alert_fn=None, commentary_fn=None, dry_run=False):
 
             if not dry_run and conn and score_rows:
                 upsert_daily_scores(conn, score_rows)
-
-            # 차단된 매도 신호 기록
-            for ev in analysis.get('blocked_sells', []):
-                peak_date = df.index[ev['peak_idx']].strftime('%Y-%m-%d')
-                results['blocked_sells'].append({
-                    'ticker': ticker,
-                    'peak_date': peak_date,
-                    'peak_val': ev['peak_val'],
-                    'close_price': float(df['Close'].iloc[ev['peak_idx']]),
-                })
 
             # 차단된 매수 신호 기록 (DD 게이트 미통과)
             for ev in analysis.get('blocked_buys', []):
@@ -128,7 +115,7 @@ def run_scan(alert_fn=None, commentary_fn=None, dry_run=False):
                     'commentary': None,
                     's_force': float(subind['s_force'].iloc[peak_idx]),
                     's_div': float(subind['s_div'].iloc[peak_idx]),
-                    's_conc': float(subind['s_conc'].iloc[peak_idx]),
+                    's_conc': 0.0,  # GEO-OP에서 미사용 (DB 호환)
                     'er': None,
                     'atr_pct': None,
                     # Duration 기반 분류

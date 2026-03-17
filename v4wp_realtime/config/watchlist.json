@@ -14,25 +14,25 @@
     "COIN":  {"sector": "Fintech"},
     "HOOD":  {"sector": "Fintech"},
     "IONQ":  {"sector": "Quantum"},
-    "PL":    {"sector": "Space"}
+    "PL":    {"sector": "Space"},
+    "ASTS":  {"sector": "Space"},
+    "CRCL":  {"sector": "Growth"},
+    "SOFI":  {"sector": "Fintech"}
   },
   "benchmarks": ["QQQ", "VOO"],
   "params": {
     "v4_window": 20,
-    "signal_threshold": 0.15,
+    "signal_threshold": 0.05,
     "cooldown": 5,
-    "er_quantile": 66,
-    "atr_quantile": 55,
+    "er_quantile": 80,
+    "atr_quantile": 40,
     "lookback": 252,
     "data_years": 3,
-    "confirm_days": 3,
+    "confirm_days": 1,
     "buy_confirmed_pct": 1.00,
-    "sell_confirm_days": 3,
-    "sell_confirmed_pct": 0.05,
-    "late_sell_drop_th": 0.05,
     "divgate_days": 3,
     "earnings_vol_filter": true,
     "buy_dd_lookback": 20,
-    "buy_dd_threshold": 0.05
+    "buy_dd_threshold": 0.03
   }
 }

@@ -416,12 +416,14 @@ def smooth_earnings_volume(df, ticker=None, spike_mult=3.0, buffer_days=1, media
 
 
 def calc_v4_score(df, w=20, divgate_days=3):
-    """V4: 3지표(force/div/conc), 가중치 0.45/0.30/0.25, activity multiplier.
-    DivGate: S_Div가 divgate_days일 연속 같은 부호여야 활성화 (아니면 0).
-    divgate_days=1이면 기존 동작과 동일."""
+    """VN60+GEO-OP: 2지표(force/div) AND-GEO 결합.
+    score = sqrt(S_Force × S_Div) when both > 0 (buy territory)
+    score = -sqrt(|S_Force| × |S_Div|) when both < 0 (sell territory)
+    score = 0 otherwise (mixed → no signal)
+    DivGate: S_Div가 divgate_days일 연속 같은 부호여야 활성화."""
     n=len(df)
     pv_div=calc_pv_divergence(df,w)
-    pv_conc=calc_pv_concordance(df,w); pv_fh=calc_pv_force_macd(df)
+    pv_fh=calc_pv_force_macd(df)
 
     # DivGate: 연속 같은 부호 일수 사전 계산
     raw_div=np.array([np.clip(pv_div.iloc[i]/3,-1,1) for i in range(n)])
@@ -437,24 +439,25 @@ def calc_v4_score(df, w=20, divgate_days=3):
     scores=np.zeros(n)
     for i in range(max(60,w),n):
         s_div=raw_div[i] if consec[i]>=divgate_days else 0.0
-        s_conc=pv_conc.iloc[i]
         fhr_std=pv_fh.iloc[max(0,i-w):i].std()+1e-10
         s_force=np.clip(pv_fh.iloc[i]/(2*fhr_std),-1,1)
 
-        dire=0.45*s_force+0.30*s_div+0.25*s_conc
-        act=sum([abs(s_div)>0.1,abs(s_conc)>0.1,abs(s_force)>0.1])
-        mm={0:0.5,1:1.0,2:1.5,3:2.2}
-        scores[i]=dire*mm.get(act,1.0)
+        # AND-GEO: 둘 다 같은 방향일 때만 신호
+        if s_force>0 and s_div>0:
+            scores[i]=np.sqrt(s_force*s_div)
+        elif s_force<0 and s_div<0:
+            scores[i]=-np.sqrt(abs(s_force)*abs(s_div))
+        else:
+            scores[i]=0.0
 
     return pd.Series(scores,index=df.index,name='V4')
 
 
 def calc_v4_subindicators(df, w=20, divgate_days=3):
-    """V4 내부 지표값을 매 bar마다 계산하여 DataFrame으로 반환.
-    calc_v4_score()와 동일한 DivGate 로직 적용."""
+    """VN60+GEO-OP 내부 지표값을 매 bar마다 계산하여 DataFrame으로 반환.
+    AND-GEO 결합: sqrt(S_Force × S_Div) when both same sign, else 0."""
     n = len(df)
     pv_div = calc_pv_divergence(df, w)
-    pv_conc = calc_pv_concordance(df, w)
     pv_fh = calc_pv_force_macd(df)
 
     # DivGate: 연속 같은 부호 일수
@@ -471,34 +474,33 @@ def calc_v4_subindicators(df, w=20, divgate_days=3):
     arr_force = np.zeros(n)
     arr_div = np.zeros(n)
     arr_div_raw = np.zeros(n)
-    arr_conc = np.zeros(n)
-    arr_act = np.zeros(n)
     arr_score = np.zeros(n)
 
     for i in range(max(60, w), n):
         s_div_raw = raw_div[i]
         s_div = s_div_raw if consec[i] >= divgate_days else 0.0
-        s_conc = pv_conc.iloc[i]
         fhr_std = pv_fh.iloc[max(0, i - w):i].std() + 1e-10
         s_force = np.clip(pv_fh.iloc[i] / (2 * fhr_std), -1, 1)
 
-        dire = 0.45 * s_force + 0.30 * s_div + 0.25 * s_conc
-        act = sum([abs(s_div) > 0.1, abs(s_conc) > 0.1, abs(s_force) > 0.1])
-        mm = {0: 0.5, 1: 1.0, 2: 1.5, 3: 2.2}
-        score = dire * mm.get(act, 1.0)
+        # AND-GEO combination
+        if s_force > 0 and s_div > 0:
+            score = np.sqrt(s_force * s_div)
+        elif s_force < 0 and s_div < 0:
+            score = -np.sqrt(abs(s_force) * abs(s_div))
+        else:
+            score = 0.0
 
         arr_force[i] = s_force
         arr_div[i] = s_div
         arr_div_raw[i] = s_div_raw
-        arr_conc[i] = s_conc
-        arr_act[i] = act
         arr_score[i] = score
 
     return pd.DataFrame({
         's_force': arr_force,
         's_div': arr_div, 's_div_raw': arr_div_raw,
-        's_conc': arr_conc,
-        'act': arr_act, 'score': arr_score,
+        's_conc': np.zeros(n),  # backward compat (GEO-OP에서 미사용)
+        'act': np.zeros(n),     # backward compat (GEO-OP에서 미사용)
+        'score': arr_score,
     }, index=df.index)
 
 

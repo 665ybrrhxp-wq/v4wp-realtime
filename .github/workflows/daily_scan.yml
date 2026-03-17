@@ -29,3 +29,11 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           CLAUDE_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python v4wp_realtime/scripts/daily_scan.py
+
+      - name: Commit signal history
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/signals_history.json
+          git diff --cached --quiet || git commit -m "data: update signal history $(date -u +%Y-%m-%d)"
+          git push

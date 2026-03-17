@@ -1,9 +1,8 @@
-  .env
-  v4wp_realtime/.env
-  *.pyc
-  __pycache__/
-  cache/
-  data/*.db
-  data/*.json
-  .claude/
-  *.db
+.env
+v4wp_realtime/.env
+*.pyc
+__pycache__/
+cache/
+data/*.db
+.claude/
+*.db
