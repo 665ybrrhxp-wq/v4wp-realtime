@@ -1,1 +1,24 @@
-[]
+[
+  {
+    "ticker": "NVDA",
+    "sector": "Tech",
+    "signal_type": "bottom",
+    "peak_date": "2026-03-16",
+    "peak_val": 0.36686794106219744,
+    "start_val": 0.36686794106219744,
+    "duration": 1,
+    "close_price": 183.22000122070312,
+    "detected_date": "2026-03-17",
+    "notified": 0,
+    "commentary": null,
+    "s_force": 0.48377815935919927,
+    "s_div": 0.278210339957251,
+    "s_conc": 0.0,
+    "er": null,
+    "atr_pct": null,
+    "signal_tier": "CONFIRMED",
+    "is_strong": true,
+    "signal_label": "BUY (CONFIRMED)",
+    "action_pct": 1.0
+  }
+]
