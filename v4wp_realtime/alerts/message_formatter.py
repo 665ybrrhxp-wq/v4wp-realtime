@@ -1,59 +1,135 @@
 """Telegram 메시지 포맷팅 (HTML mode)"""
 
 
-def format_signal_message(signal):
-    """개별 매수 신호 → Telegram HTML 카드."""
+def format_signal_compact(signal):
+    """사진 캡션용 요약 (단일 신호)."""
+    dd_pct = signal.get('dd_pct', 0.0)
+    dd_icon = _dd_icon(dd_pct)
+    score = signal.get('start_val', signal.get('peak_val', 0))
     action_pct = signal.get('action_pct')
-    duration = signal.get('duration', 0)
-    score_val = signal.get('start_val', signal.get('peak_val', 0))
-
-    emoji = '\U0001f7e2'  # 🟢
-    action_text = f'가용자금의 {action_pct:.0%} 매수' if action_pct else ''
-    direction = 'BUY'
-
-    # 스코어 강도 바 (5칸)
-    bar = _score_dots(score_val)
 
     lines = [
-        f'{emoji} <b>{signal["ticker"]}</b>  {direction}',
+        f'\U0001f7e2 <b>{signal["ticker"]}</b>  BUY',
         '',
-        f'  가격    <code>${signal["close_price"]:.2f}</code>',
-        f'  스코어  <code>{score_val:+.3f}</code>  {bar}',
-        f'  지속    <code>{duration}일</code>',
-        '',
-        f'  Force <code>{signal["s_force"]:+.2f}</code>  '
-        f'Div <code>{signal["s_div"]:+.2f}</code>',
+        f'<code>${signal["close_price"]:.2f}</code>  '
+        f'\u2502  DD <code>{dd_pct:.1%}</code> {dd_icon}',
+        f'Score <code>{score:+.3f}</code> {_score_bar(score)}',
     ]
 
-    if action_text:
-        lines.append('')
-        lines.append(f'  \u27a1 <b>{action_text}</b>')
-
-    lines.append(f'  {signal["peak_date"]}')
-
-    if signal.get('commentary'):
-        lines.append('')
-        lines.append(f'  <i>{signal["commentary"]}</i>')
+    if action_pct:
+        lines.append(f'\u27a1 <b>{action_pct:.0%} 매수</b>  \u2502  {signal["peak_date"]}')
 
     return '\n'.join(lines)
 
 
-def _score_dots(score):
-    """스코어 강도를 5단계 도트로 표현."""
+def format_signal_message(signal):
+    """매수 신호 상세 카드."""
+    action_pct = signal.get('action_pct')
+    duration = signal.get('duration', 0)
+    score_val = signal.get('start_val', signal.get('peak_val', 0))
+
+    dd_pct = signal.get('dd_pct', 0.0)
+    dd_label = _dd_confidence(dd_pct)
+
+    lines = [
+        f'\U0001f7e2 <b>{signal["ticker"]}</b>  BUY',
+        '',
+        f'\U0001f4b0 가격       <code>${signal["close_price"]:.2f}</code>',
+        f'\U0001f4c9 낙폭       <code>{dd_pct:.1%}</code>  {dd_label}',
+        f'\U0001f4ca 스코어    <code>{score_val:+.3f}</code>  {_score_bar(score_val)}',
+        f'\u23f1 지속       <code>{duration}일</code>',
+        '',
+        f'\u26a1 Force <code>{signal["s_force"]:+.3f}</code>'
+        f'  \u2502  '
+        f'\U0001f4d0 Div <code>{signal["s_div"]:+.3f}</code>',
+    ]
+
+    if action_pct:
+        lines.append('')
+        lines.append(
+            f'\u27a1 <b>가용자금의 {action_pct:.0%} 매수</b>'
+        )
+
+    lines.append(f'\U0001f4c5  {signal["peak_date"]}')
+
+    if signal.get('commentary'):
+        lines.append('')
+        lines.append(f'\U0001f4a1 <i>{signal["commentary"]}</i>')
+
+    return '\n'.join(lines)
+
+
+def format_signals_summary(signals):
+    """다중 신호 요약 (인라인 키보드 메시지)."""
+    n = len(signals)
+    lines = [
+        f'\U0001f4ca <b>V4_wP 매수 신호 {n}건</b>',
+        '',
+    ]
+    for s in signals:
+        dd_pct = s.get('dd_pct', 0.0)
+        dd_icon = _dd_icon(dd_pct)
+        score = s.get('start_val', s.get('peak_val', 0))
+        lines.append(
+            f'\U0001f7e2 <b>{s["ticker"]}</b>'
+            f'  <code>${s["close_price"]:>8.2f}</code>'
+            f'  DD <code>{dd_pct:.1%}</code>{dd_icon}'
+            f'  {_score_bar(score)}'
+        )
+    lines.append('')
+    lines.append('\u2195 종목 버튼 \u2192 차트 + 상세 분석')
+    return '\n'.join(lines)
+
+
+def _score_bar(score):
+    """스코어 강도를 5단계 게이지 바로 표현."""
     abs_s = min(abs(score), 1.0)
     filled = round(abs_s * 5)
-    return '\U0001f7e2' * filled + '\u26aa' * (5 - filled)  # 🟢⚪
+    return '\u25b0' * filled + '\u25b1' * (5 - filled)
+
+
+def _dd_icon(dd_pct):
+    """DD 이모지 (요약용)."""
+    if dd_pct >= 0.20:
+        return '\U0001f525'
+    elif dd_pct >= 0.10:
+        return '\U0001f4aa'
+    elif dd_pct >= 0.05:
+        return '\U0001f44d'
+    else:
+        return '\u2705'
+
+
+def _dd_confidence(dd_pct):
+    """DD 신뢰도 라벨.
+
+    실험 근거 (2,040 신호, bootstrap 검증):
+      3~5%  → 90d +9.1%, Hit 68.6%  (보통)
+      5~10% → 90d +9.9%, Hit 68.6%  (양호)
+      10~20% → 90d +20.7%, Hit 72.0% (강력, p<0.01)
+      20%+  → 90d +33.5%, Hit 61.2%  (극강, 변동성 주의)
+    """
+    if dd_pct >= 0.20:
+        return '\U0001f525 극강(변동주의)'
+    elif dd_pct >= 0.10:
+        return '\U0001f4aa 강력'
+    elif dd_pct >= 0.05:
+        return '\U0001f44d 양호'
+    else:
+        return '\u2705 보통'
 
 
 def format_scan_summary(results):
     """스캔 요약 → Telegram HTML 카드."""
     n_new = len(results['new_signals'])
     n_err = len(results['errors'])
-    n_blocked_buys = len(results.get('blocked_buys', []))
+    n_blocked = len(results.get('blocked_buys', []))
 
     lines = [
         f'\U0001f4ca <b>V4_wP Daily Report</b>',
-        f'{results["date"]}  |  {results["scanned"]}종목  |  {results["duration_sec"]:.0f}s',
+        f'{results["date"]}  \u2502  '
+        f'{results["scanned"]}종목  \u2502  '
+        f'{results["duration_sec"]:.0f}s',
         '',
     ]
 
@@ -62,13 +138,14 @@ def format_scan_summary(results):
 
     if n_new > 0:
         tickers = ', '.join(
-            f'<b>{s["ticker"]}</b>({s.get("duration",0)}d)' for s in results['new_signals']
+            f'<b>{s["ticker"]}</b>({s.get("duration",0)}d)'
+            for s in results['new_signals']
         )
         lines.append(f'\U0001f7e2 매수 {n_new}건: {tickers}')
     else:
         lines.append('\u2705 신규 신호 없음')
 
-    if n_blocked_buys > 0:
-        lines.append(f'\U0001f6ab DD게이트 차단: {n_blocked_buys}건')
+    if n_blocked > 0:
+        lines.append(f'\U0001f6ab DD게이트 차단: {n_blocked}건')
 
     return '\n'.join(lines)

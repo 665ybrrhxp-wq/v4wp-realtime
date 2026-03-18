@@ -80,6 +80,7 @@ def analyze_ticker(ticker, df, params):
         price = close[pidx]
         rh = rolling_high_buy[pidx]
         dd = (rh - price) / rh if rh > 0 else 0
+        e['dd_pct'] = float(dd)  # DD 퍼센트 저장
         if dd < buy_dd_threshold:
             blocked_buys.append(e)
             continue

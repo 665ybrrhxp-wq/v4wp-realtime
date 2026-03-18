@@ -4,5 +4,7 @@ v4wp_realtime/.env
 __pycache__/
 cache/
 data/*.db
+data/charts/
+data/callback_data.json
 .claude/
 *.db

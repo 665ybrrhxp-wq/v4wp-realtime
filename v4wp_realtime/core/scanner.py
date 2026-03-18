@@ -55,6 +55,9 @@ def run_scan(alert_fn=None, commentary_fn=None, dry_run=False):
 
     all_tickers = list(tickers.keys()) + wl.get('benchmarks', [])
 
+    # 앨범 전송용 배치 수집
+    pending_alerts = []  # list of (signal_data, chart_bytes)
+
     for ticker in all_tickers:
         try:
             df = fetch_data(ticker, years=params.get('data_years', 3))
@@ -116,6 +119,7 @@ def run_scan(alert_fn=None, commentary_fn=None, dry_run=False):
                     's_force': float(subind['s_force'].iloc[peak_idx]),
                     's_div': float(subind['s_div'].iloc[peak_idx]),
                     's_conc': 0.0,  # GEO-OP에서 미사용 (DB 호환)
+                    'dd_pct': ev.get('dd_pct', 0.0),
                     'er': None,
                     'atr_pct': None,
                     # Duration 기반 분류
@@ -146,23 +150,40 @@ def run_scan(alert_fn=None, commentary_fn=None, dry_run=False):
 
                     results['new_signals'].append(signal_data)
 
-                    # 알림 전송
+                    # 차트 생성 + 알림 배치 수집
+                    chart_bytes = None
                     if alert_fn and not dry_run:
                         try:
-                            alert_fn(signal_data)
-                            if conn:
-                                # mark notified
-                                conn.execute(
-                                    """UPDATE signal_events SET notified = 1
-                                       WHERE ticker = ? AND signal_type = ? AND peak_date = ?""",
-                                    (ticker, ev['type'], ev['peak_date'])
-                                )
-                                conn.commit()
-                        except Exception as e:
-                            results['errors'].append((ticker, f'alert error: {e}'))
+                            from v4wp_realtime.alerts.chart_generator import generate_signal_chart
+                            chart_bytes = generate_signal_chart(
+                                ticker, df, analysis['subindicators'], ev
+                            )
+                        except Exception:
+                            pass  # 차트 실패 시 텍스트만 전송
+
+                        pending_alerts.append((signal_data, chart_bytes))
 
         except Exception as e:
             results['errors'].append((ticker, str(e)))
+
+    # ── 앨범 전송 (스캔 완료 후 일괄) ──
+    if pending_alerts and alert_fn and not dry_run:
+        try:
+            from v4wp_realtime.alerts.telegram_bot import send_signal_album
+            send_signal_album(pending_alerts)
+
+            # mark all notified
+            if conn:
+                for signal_data, _ in pending_alerts:
+                    conn.execute(
+                        """UPDATE signal_events SET notified = 1
+                           WHERE ticker = ? AND signal_type = ? AND peak_date = ?""",
+                        (signal_data['ticker'], signal_data['signal_type'],
+                         signal_data['peak_date'])
+                    )
+                conn.commit()
+        except Exception as e:
+            results['errors'].append(('album_send', f'alert error: {e}'))
 
     duration = (datetime.now() - start_time).total_seconds()
     results['duration_sec'] = duration
