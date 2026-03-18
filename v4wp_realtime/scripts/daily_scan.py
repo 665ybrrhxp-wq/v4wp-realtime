@@ -18,6 +18,7 @@ from v4wp_realtime.config.settings import (
     TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, CLAUDE_API_KEY, SIGNALS_JSON,
 )
 from v4wp_realtime.data.store import get_connection, init_db, insert_signal_event
+from v4wp_realtime.alerts.telegram_bot import send_signal_alert, send_scan_summary
 
 
 def load_signal_history():
@@ -80,7 +81,6 @@ def main():
     # 알림 함수 설정
     alert_fn = None
     if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID:
-        from v4wp_realtime.alerts.telegram_bot import send_signal_alert
         alert_fn = send_signal_alert
 
     # AI 코멘터리 함수 설정
@@ -122,7 +122,15 @@ def main():
         for ticker, err in results['errors']:
             print(f'    {ticker}: {err}')
 
-    # 3) JSON 히스토리 업데이트
+    # 3) 스캔 리포트 전송 (신호 유무 관계없이)
+    if alert_fn:
+        try:
+            send_scan_summary(results)
+            print(f'\n  Scan report sent to Telegram')
+        except Exception as e:
+            print(f'\n  Scan report send failed: {e}')
+
+    # 4) JSON 히스토리 업데이트
     if results['new_signals']:
         total = save_signal_history(history, results['new_signals'])
         print(f'\n  Signal history updated: {total} total signals')
