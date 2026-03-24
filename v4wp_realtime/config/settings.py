@@ -41,5 +41,6 @@ CLAUDE_API_KEY = os.environ.get('CLAUDE_API_KEY', '')
 # 예: TELEGRAM_BOT_USERNAME=v4wp_bot
 TELEGRAM_BOT_USERNAME = os.environ.get('TELEGRAM_BOT_USERNAME', '')
 # Mini App 단축이름 (BotFather /newapp에서 설정)
-# 예: TELEGRAM_MINIAPP_SHORT=app
-TELEGRAM_MINIAPP_SHORT = os.environ.get('TELEGRAM_MINIAPP_SHORT', 'app')
+TELEGRAM_MINIAPP_SHORT = os.environ.get('TELEGRAM_MINIAPP_SHORT', 'Dashboard')
+# Mini App 직접 URL (GitHub Pages)
+TELEGRAM_WEBAPP_URL = os.environ.get('TELEGRAM_WEBAPP_URL', '')

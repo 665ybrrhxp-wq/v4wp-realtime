@@ -22,7 +22,7 @@ import time
 import requests
 from v4wp_realtime.config.settings import (
     TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, DATA_DIR,
-    TELEGRAM_BOT_USERNAME, TELEGRAM_MINIAPP_SHORT,
+    TELEGRAM_BOT_USERNAME, TELEGRAM_MINIAPP_SHORT, TELEGRAM_WEBAPP_URL,
 )
 from v4wp_realtime.alerts.message_formatter import (
     format_signal_message, format_signal_compact,
@@ -191,20 +191,24 @@ def _answer_callback(callback_query_id, text=None):
 def _keyboard(rows):
     """인라인 키보드 마크업 생성.
 
-    각 row는 (text, data) 튜플 리스트.
-    data가 http:// 또는 https://로 시작하면 url 버튼, 아니면 callback_data 버튼.
+    각 row는 버튼 리스트. 버튼은:
+      - dict → 이미 완성된 버튼 (web_app 등)
+      - (text, data) 튜플 → url 또는 callback_data 자동 판별
     """
-    return {
-        'inline_keyboard': [
-            [
-                {'text': text, 'url': data}
-                if isinstance(data, str) and data.startswith('http')
-                else {'text': text, 'callback_data': data}
-                for text, data in row
-            ]
-            for row in rows
-        ]
-    }
+    keyboard = []
+    for row in rows:
+        btn_row = []
+        for btn in row:
+            if isinstance(btn, dict):
+                btn_row.append(btn)
+            else:
+                text, data = btn
+                if isinstance(data, str) and data.startswith('http'):
+                    btn_row.append({'text': text, 'url': data})
+                else:
+                    btn_row.append({'text': text, 'callback_data': data})
+        keyboard.append(btn_row)
+    return {'inline_keyboard': keyboard}
 
 
 def _miniapp_url(ticker=None, peak_date=None):
@@ -239,7 +243,14 @@ def _close_button():
 
 
 def _dashboard_button(ticker=None, peak_date=None):
-    """Mini App 딥링크 버튼. BOT_USERNAME 미설정 시 빈 리스트 반환."""
+    """Mini App 버튼. web_app 타입으로 텔레그램 내에서 직접 열림."""
+    if TELEGRAM_WEBAPP_URL:
+        # web_app 버튼: 텔레그램 내 Mini App으로 직접 오픈
+        url = TELEGRAM_WEBAPP_URL.rstrip('/')
+        if ticker:
+            url += f'?ticker={ticker}'
+        return [{'text': '\U0001f4f1 Dashboard', 'web_app': {'url': url}}]
+    # fallback: t.me 딥링크
     url = _miniapp_url(ticker, peak_date)
     if not url:
         return []
