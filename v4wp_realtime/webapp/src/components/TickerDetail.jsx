@@ -71,14 +71,15 @@ export default function TickerDetail({ ticker }) {
   }));
 
   const signalDates = new Set(signals.map((s) => s.date?.slice(5)));
-  const xInterval = Math.floor(days.length / 5);
+  // 스크롤 가능 차트: 데이터 포인트당 최소 너비 확보
+  const chartW = Math.max(days.length * 12, 480);
+  const barChartW = Math.max(days.length * 10, 400);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       {/* ── 1. Score + AND-GEO ── */}
       <Card>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          {/* Score 숫자 */}
           <div style={{ textAlign: "center", flexShrink: 0, minWidth: 90 }}>
             <div style={{ fontSize: 9, color: "var(--tg-hint)", textTransform: "uppercase", letterSpacing: 0.8 }}>
               V4_wP Score
@@ -111,7 +112,6 @@ export default function TickerDetail({ ticker }) {
             </div>
           </div>
 
-          {/* s_force / s_div 게이지 */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <Gauge value={sForce} min={-1} max={1} label="s_force" color={sForce > 0 ? "#34d399" : "#f87171"} />
             <Gauge value={sDiv} min={-1} max={1} label="s_div" color={sDiv > 0 ? "#818cf8" : "#f87171"} />
@@ -140,40 +140,45 @@ export default function TickerDetail({ ticker }) {
         </div>
       )}
 
-      {/* ── 2. Price Chart ── */}
+      {/* ── 2. Price Chart (스크롤 가능) ── */}
       <Card label={`PRICE · ${chart.days || 60}D`}>
-        <ResponsiveContainer width="100%" height={180}>
-          <ComposedChart data={priceData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-            <XAxis
-              dataKey="date"
-              tick={{ fontSize: 9, fill: "var(--tg-hint)" }}
-              tickLine={false}
-              axisLine={{ stroke: "rgba(255,255,255,0.06)" }}
-              interval={xInterval}
-            />
-            <YAxis
-              domain={["auto", "auto"]}
-              tick={{ fontSize: 9, fill: "var(--tg-hint)" }}
-              tickLine={false}
-              axisLine={false}
-              width={42}
-            />
-            <Tooltip contentStyle={tooltipStyle} formatter={(v) => [typeof v === "number" ? `$${v.toFixed(2)}` : v]} />
-            <defs>
-              <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#818cf8" stopOpacity={0.15} />
-                <stop offset="100%" stopColor="#818cf8" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <Area type="monotone" dataKey="close" fill="url(#priceGrad)" stroke="none" />
-            <Line type="monotone" dataKey="close" stroke="#818cf8" strokeWidth={2} dot={false} />
-            {priceData
-              .filter((d) => signalDates.has(d.date))
-              .map((d, i) => (
-                <ReferenceLine key={i} x={d.date} stroke="#34d399" strokeDasharray="3 3" strokeWidth={1} />
-              ))}
-          </ComposedChart>
-        </ResponsiveContainer>
+        <ScrollHint />
+        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", marginRight: -10, paddingRight: 10 }}>
+          <div style={{ minWidth: chartW }}>
+            <ResponsiveContainer width="100%" height={200}>
+              <ComposedChart data={priceData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 9, fill: "var(--tg-hint)" }}
+                  tickLine={false}
+                  axisLine={{ stroke: "rgba(255,255,255,0.06)" }}
+                  interval={Math.floor(days.length / 8)}
+                />
+                <YAxis
+                  domain={["auto", "auto"]}
+                  tick={{ fontSize: 9, fill: "var(--tg-hint)" }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={42}
+                />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v) => [typeof v === "number" ? `$${v.toFixed(2)}` : v]} />
+                <defs>
+                  <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#818cf8" stopOpacity={0.15} />
+                    <stop offset="100%" stopColor="#818cf8" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <Area type="monotone" dataKey="close" fill="url(#priceGrad)" stroke="none" />
+                <Line type="monotone" dataKey="close" stroke="#818cf8" strokeWidth={2} dot={false} />
+                {priceData
+                  .filter((d) => signalDates.has(d.date))
+                  .map((d, i) => (
+                    <ReferenceLine key={i} x={d.date} stroke="#34d399" strokeDasharray="3 3" strokeWidth={1} />
+                  ))}
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
 
         {signals.length > 0 && (
           <div style={{ display: "flex", gap: 8, padding: "6px 4px 0", flexWrap: "wrap" }}>
@@ -188,38 +193,58 @@ export default function TickerDetail({ ticker }) {
         )}
       </Card>
 
-      {/* ── 3. s_force 시계열 ── */}
+      {/* ── 3. s_force 시계열 (스크롤 가능) ── */}
       <Card label="S_FORCE · PV Momentum">
-        <ResponsiveContainer width="100%" height={70}>
-          <BarChart data={forceData} margin={{ top: 2, right: 4, bottom: 0, left: 0 }}>
-            <XAxis dataKey="date" tick={false} axisLine={{ stroke: "rgba(255,255,255,0.06)" }} />
-            <YAxis domain={[-1, 1]} tick={{ fontSize: 8, fill: "var(--tg-hint)" }} tickLine={false} axisLine={false} width={24} ticks={[-1, 0, 1]} />
-            <ReferenceLine y={0} stroke="rgba(255,255,255,0.08)" />
-            <Tooltip contentStyle={tooltipStyle} />
-            <Bar dataKey="val" radius={[2, 2, 0, 0]}>
-              {forceData.map((d, i) => (
-                <Cell key={i} fill={d.val >= 0 ? "#34d399" : "#f87171"} fillOpacity={0.7} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", marginRight: -10, paddingRight: 10 }}>
+          <div style={{ minWidth: barChartW }}>
+            <ResponsiveContainer width="100%" height={90}>
+              <BarChart data={forceData} margin={{ top: 2, right: 8, bottom: 0, left: 0 }}>
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 8, fill: "var(--tg-hint)" }}
+                  tickLine={false}
+                  axisLine={{ stroke: "rgba(255,255,255,0.06)" }}
+                  interval={Math.floor(days.length / 6)}
+                />
+                <YAxis domain={[-1, 1]} tick={{ fontSize: 8, fill: "var(--tg-hint)" }} tickLine={false} axisLine={false} width={24} ticks={[-1, 0, 1]} />
+                <ReferenceLine y={0} stroke="rgba(255,255,255,0.08)" />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Bar dataKey="val" radius={[2, 2, 0, 0]}>
+                  {forceData.map((d, i) => (
+                    <Cell key={i} fill={d.val >= 0 ? "#34d399" : "#f87171"} fillOpacity={0.7} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </Card>
 
-      {/* ── 4. s_div 시계열 ── */}
+      {/* ── 4. s_div 시계열 (스크롤 가능) ── */}
       <Card label="S_DIV · PV Divergence">
-        <ResponsiveContainer width="100%" height={70}>
-          <BarChart data={divData} margin={{ top: 2, right: 4, bottom: 0, left: 0 }}>
-            <XAxis dataKey="date" tick={false} axisLine={{ stroke: "rgba(255,255,255,0.06)" }} />
-            <YAxis domain={[-1, 1]} tick={{ fontSize: 8, fill: "var(--tg-hint)" }} tickLine={false} axisLine={false} width={24} ticks={[-1, 0, 1]} />
-            <ReferenceLine y={0} stroke="rgba(255,255,255,0.08)" />
-            <Tooltip contentStyle={tooltipStyle} />
-            <Bar dataKey="val" radius={[2, 2, 0, 0]}>
-              {divData.map((d, i) => (
-                <Cell key={i} fill={d.val >= 0 ? "#818cf8" : "#f87171"} fillOpacity={0.7} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", marginRight: -10, paddingRight: 10 }}>
+          <div style={{ minWidth: barChartW }}>
+            <ResponsiveContainer width="100%" height={90}>
+              <BarChart data={divData} margin={{ top: 2, right: 8, bottom: 0, left: 0 }}>
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 8, fill: "var(--tg-hint)" }}
+                  tickLine={false}
+                  axisLine={{ stroke: "rgba(255,255,255,0.06)" }}
+                  interval={Math.floor(days.length / 6)}
+                />
+                <YAxis domain={[-1, 1]} tick={{ fontSize: 8, fill: "var(--tg-hint)" }} tickLine={false} axisLine={false} width={24} ticks={[-1, 0, 1]} />
+                <ReferenceLine y={0} stroke="rgba(255,255,255,0.08)" />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Bar dataKey="val" radius={[2, 2, 0, 0]}>
+                  {divData.map((d, i) => (
+                    <Cell key={i} fill={d.val >= 0 ? "#818cf8" : "#f87171"} fillOpacity={0.7} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </Card>
 
       {/* ── 5. Signal History ── */}
@@ -316,6 +341,14 @@ function PipeChip({ ok, label, detail }) {
       <div style={{ fontSize: 9, fontFamily: mono, color: "var(--tg-hint)" }}>
         {detail}
       </div>
+    </div>
+  );
+}
+
+function ScrollHint() {
+  return (
+    <div style={{ fontSize: 9, color: "var(--tg-hint)", textAlign: "right", marginBottom: 2, opacity: 0.6 }}>
+      swipe to scroll &rarr;
     </div>
   );
 }
