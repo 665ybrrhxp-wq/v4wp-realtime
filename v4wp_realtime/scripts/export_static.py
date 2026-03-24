@@ -109,7 +109,7 @@ def export_watchlist(conn, wl):
     return tickers
 
 
-def export_chart_data(conn, ticker, days=60):
+def export_chart_data(conn, ticker, days=120):
     """chart/{TICKER}.json 생성."""
     rows = conn.execute(
         """SELECT date, close_price, score, s_force, s_div, s_conc, er, atr_pct

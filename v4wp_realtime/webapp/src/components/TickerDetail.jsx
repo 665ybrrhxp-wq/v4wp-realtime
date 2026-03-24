@@ -27,7 +27,7 @@ export default function TickerDetail({ ticker }) {
     setLoading(true);
 
     Promise.all([
-      fetchChartData(ticker, 60),
+      fetchChartData(ticker, 120),
       fetchIndicators(ticker),
     ])
       .then(([chartRes, indRes]) => {
@@ -143,7 +143,7 @@ export default function TickerDetail({ ticker }) {
       {/* ── 2. Price Chart (스크롤 가능) ── */}
       <Card label={`PRICE · ${chart.days || 60}D`}>
         <ScrollHint />
-        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", marginRight: -10, paddingRight: 10 }}>
+        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", touchAction: "pan-x", marginRight: -10, paddingRight: 10 }}>
           <div style={{ minWidth: chartW }}>
             <ResponsiveContainer width="100%" height={200}>
               <ComposedChart data={priceData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
@@ -195,7 +195,7 @@ export default function TickerDetail({ ticker }) {
 
       {/* ── 3. s_force 시계열 (스크롤 가능) ── */}
       <Card label="S_FORCE · PV Momentum">
-        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", marginRight: -10, paddingRight: 10 }}>
+        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", touchAction: "pan-x", marginRight: -10, paddingRight: 10 }}>
           <div style={{ minWidth: barChartW }}>
             <ResponsiveContainer width="100%" height={90}>
               <BarChart data={forceData} margin={{ top: 2, right: 8, bottom: 0, left: 0 }}>
@@ -222,7 +222,7 @@ export default function TickerDetail({ ticker }) {
 
       {/* ── 4. s_div 시계열 (스크롤 가능) ── */}
       <Card label="S_DIV · PV Divergence">
-        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", marginRight: -10, paddingRight: 10 }}>
+        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", touchAction: "pan-x", marginRight: -10, paddingRight: 10 }}>
           <div style={{ minWidth: barChartW }}>
             <ResponsiveContainer width="100%" height={90}>
               <BarChart data={divData} margin={{ top: 2, right: 8, bottom: 0, left: 0 }}>
