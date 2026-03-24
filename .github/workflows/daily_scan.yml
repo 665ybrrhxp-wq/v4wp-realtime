@@ -8,10 +8,16 @@ on:
     - cron: '30 21 * * 1-5'
   workflow_dispatch:  # 수동 실행 버튼
 
+# GitHub Pages 배포 권한
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v4
@@ -20,13 +26,18 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Python dependencies
         run: pip install -r requirements.txt
 
       - name: Run daily scan
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_BOT_USERNAME: ${{ secrets.TELEGRAM_BOT_USERNAME }}
           CLAUDE_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python v4wp_realtime/scripts/daily_scan.py
 
@@ -38,3 +49,19 @@ jobs:
           git diff --cached --quiet || git commit -m "data: update signal history $(date -u +%Y-%m-%d)"
           git pull --rebase origin main
           git push
+
+      # ── Mini App 빌드 + 배포 ──
+      - name: Build webapp
+        working-directory: v4wp_realtime/webapp
+        run: |
+          npm ci
+          npm run build
+
+      - name: Export static data
+        run: python v4wp_realtime/scripts/export_static.py
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: v4wp_realtime/webapp/dist

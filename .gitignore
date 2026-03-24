@@ -8,3 +8,5 @@ data/charts/
 data/callback_data.json
 .claude/
 *.db
+node_modules/
+v4wp_realtime/webapp/dist/

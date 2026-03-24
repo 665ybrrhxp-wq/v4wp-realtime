@@ -35,3 +35,11 @@ def load_watchlist():
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
 TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID', '')
 CLAUDE_API_KEY = os.environ.get('CLAUDE_API_KEY', '')
+
+# Telegram Mini App 설정
+# BOT_USERNAME: BotFather에서 설정한 봇 유저네임 (@ 제외)
+# 예: TELEGRAM_BOT_USERNAME=v4wp_bot
+TELEGRAM_BOT_USERNAME = os.environ.get('TELEGRAM_BOT_USERNAME', '')
+# Mini App 단축이름 (BotFather /newapp에서 설정)
+# 예: TELEGRAM_MINIAPP_SHORT=app
+TELEGRAM_MINIAPP_SHORT = os.environ.get('TELEGRAM_MINIAPP_SHORT', 'app')

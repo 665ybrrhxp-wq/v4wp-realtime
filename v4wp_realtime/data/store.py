@@ -4,6 +4,15 @@ from pathlib import Path
 from v4wp_realtime.config.settings import DB_PATH, DATA_DIR
 
 
+def _try_publish(event_type, data):
+    """이벤트 버스로 발행 시도 (API 서버 미실행 시 무시)."""
+    try:
+        from v4wp_realtime.api.event_bus import publish
+        publish(event_type, data)
+    except Exception:
+        pass  # API 서버 미실행 환경 (GitHub Actions 등)
+
+
 SCHEMA_PATH = Path(__file__).parent / 'schema.sql'
 
 
@@ -39,6 +48,11 @@ def upsert_daily_scores(conn, rows):
     )
     conn.commit()
 
+    # SSE 이벤트 발행
+    tickers = list({r['ticker'] for r in rows if isinstance(r, dict)})
+    if tickers:
+        _try_publish("scores_updated", {"tickers": tickers, "count": len(rows)})
+
 
 def insert_signal_event(conn, event):
     """신호 이벤트 삽입 (중복 시 무시).
@@ -57,6 +71,15 @@ def insert_signal_event(conn, event):
             event
         )
         conn.commit()
+
+        # SSE 이벤트 발행
+        ticker = event.get('ticker') if isinstance(event, dict) else None
+        _try_publish("signal_detected", {
+            "ticker": ticker,
+            "signal_type": event.get('signal_type') if isinstance(event, dict) else None,
+            "peak_date": event.get('peak_date') if isinstance(event, dict) else None,
+        })
+
         return True
     except sqlite3.IntegrityError:
         return False

@@ -1,0 +1,51 @@
+/* Telegram Mini App 기본 스타일 */
+
+:root {
+  --tg-bg: #0c0d12;
+  --tg-text: #e2e4e9;
+  --tg-hint: #6b7080;
+  --tg-link: #818cf8;
+  --tg-btn: #6366f1;
+  --tg-btn-text: #ffffff;
+  --tg-secondary-bg: #12131c;
+  --tg-header-bg: #10111a;
+  --tg-section-bg: #12131c;
+  --tg-accent: #a78bfa;
+  --tg-subtitle: #8a8f98;
+  --tg-destructive: #f87171;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--tg-bg);
+  color: var(--tg-text);
+  font-family: 'Inter', -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
+}
+
+/* 스크롤바 숨기기 (워치리스트 가로스크롤) */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* 스피너 애니메이션 */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 터치 하이라이트 제거 */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Recharts 툴팁이 모바일에서 잘리지 않도록 */
+.recharts-tooltip-wrapper {
+  z-index: 100;
+}

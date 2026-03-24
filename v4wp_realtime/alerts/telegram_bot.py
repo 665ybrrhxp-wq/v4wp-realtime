@@ -1,9 +1,29 @@
-"""Telegram Bot API를 통한 알림 전송 (인라인 키보드 + 콜백 지원)"""
+"""Telegram Bot API를 통한 알림 전송 (인라인 키보드 + 콜백 지원)
+
+Mini App 딥링크 연동:
+  - 개별 시그널 알림에 "Dashboard" 버튼 추가
+    → https://t.me/{bot_username}/{miniapp_short}?startapp={ticker}_{peak_date}
+  - 일일 리포트에 "View Dashboard" 버튼 추가
+    → https://t.me/{bot_username}/{miniapp_short}
+
+BotFather 설정 방법:
+  1. /mybots → 봇 선택 → Bot Settings → Menu Button
+     - 또는 /setmenubutton 명령
+     - Web App URL: https://your-server.com/app/  (FastAPI 서버 주소)
+  2. /newapp → 봇 선택 → Web App URL 입력 → Short Name 설정
+     - Short Name이 TELEGRAM_MINIAPP_SHORT 환경변수 값과 일치해야 함
+  3. .env에 추가:
+     TELEGRAM_BOT_USERNAME=your_bot_username  (@ 제외)
+     TELEGRAM_MINIAPP_SHORT=app               (기본값)
+"""
 import io
 import json
 import time
 import requests
-from v4wp_realtime.config.settings import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, DATA_DIR
+from v4wp_realtime.config.settings import (
+    TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, DATA_DIR,
+    TELEGRAM_BOT_USERNAME, TELEGRAM_MINIAPP_SHORT,
+)
 from v4wp_realtime.alerts.message_formatter import (
     format_signal_message, format_signal_compact,
     format_signals_summary, format_scan_summary,
@@ -169,13 +189,37 @@ def _answer_callback(callback_query_id, text=None):
 # ════════════════════════════════════════════
 
 def _keyboard(rows):
-    """인라인 키보드 마크업 생성."""
+    """인라인 키보드 마크업 생성.
+
+    각 row는 (text, data) 튜플 리스트.
+    data가 http:// 또는 https://로 시작하면 url 버튼, 아니면 callback_data 버튼.
+    """
     return {
         'inline_keyboard': [
-            [{'text': text, 'callback_data': data} for text, data in row]
+            [
+                {'text': text, 'url': data}
+                if isinstance(data, str) and data.startswith('http')
+                else {'text': text, 'callback_data': data}
+                for text, data in row
+            ]
             for row in rows
         ]
     }
+
+
+def _miniapp_url(ticker=None, peak_date=None):
+    """Mini App 딥링크 URL 생성.
+
+    Returns: URL string 또는 None (BOT_USERNAME 미설정 시)
+    """
+    if not TELEGRAM_BOT_USERNAME:
+        return None
+    base = f'https://t.me/{TELEGRAM_BOT_USERNAME}/{TELEGRAM_MINIAPP_SHORT}'
+    if ticker and peak_date:
+        return f'{base}?startapp={ticker}_{peak_date}'
+    elif ticker:
+        return f'{base}?startapp={ticker}'
+    return base
 
 
 def _detail_button(ticker, peak_date):
@@ -192,6 +236,14 @@ def _summary_button(detected_date):
 
 def _close_button():
     return [('\u2715 닫기', 'x:close')]
+
+
+def _dashboard_button(ticker=None, peak_date=None):
+    """Mini App 딥링크 버튼. BOT_USERNAME 미설정 시 빈 리스트 반환."""
+    url = _miniapp_url(ticker, peak_date)
+    if not url:
+        return []
+    return [('\U0001f4f1 Dashboard', url)]
 
 
 # ════════════════════════════════════════════
@@ -265,18 +317,29 @@ def _load_callback_store():
 def send_signal_alert(signal, chart_bytes=None):
     """개별 신호 알림 전송.
 
-    chart_bytes가 있으면 차트 + 컴팩트 캡션 + [상세] 버튼.
-    없으면 상세 텍스트만 전송.
+    chart_bytes가 있으면 차트 + 컴팩트 캡션 + [상세][Dashboard] 버튼.
+    없으면 상세 텍스트 + [Dashboard] 버튼.
     """
+    ticker = signal['ticker']
+    peak_date = signal['peak_date']
+    dash_btn = _dashboard_button(ticker, peak_date)
+
     if chart_bytes:
-        _save_chart(signal['ticker'], signal['peak_date'], chart_bytes)
+        _save_chart(ticker, peak_date, chart_bytes)
         compact = format_signal_compact(signal)
-        kb = _keyboard([_detail_button(signal['ticker'], signal['peak_date'])])
+        rows = [_detail_button(ticker, peak_date)]
+        if dash_btn:
+            rows.append(dash_btn)
+        kb = _keyboard(rows)
         return _send_photo(chart_bytes, caption=compact, parse_mode='HTML',
                            reply_markup=kb)
 
     msg = format_signal_message(signal)
-    return _send_message(msg, parse_mode='HTML')
+    rows = []
+    if dash_btn:
+        rows.append(dash_btn)
+    kb = _keyboard(rows) if rows else None
+    return _send_message(msg, parse_mode='HTML', reply_markup=kb)
 
 
 def send_signal_album(signal_chart_pairs):
@@ -301,7 +364,7 @@ def send_signal_album(signal_chart_pairs):
         results.append(send_signal_alert(s, chart_bytes=c))
 
     elif len(with_chart) > 1:
-        # 다중 → 요약 메시지 + 종목별 버튼 (앨범 없음)
+        # 다중 → 요약 메시지 + 종목별 버튼 + Dashboard (앨범 없음)
         all_signals = [s for s, _ in with_chart[:10]]
         summary_msg = format_signals_summary(all_signals)
 
@@ -315,6 +378,11 @@ def send_signal_album(signal_chart_pairs):
                 row = []
         if row:
             buttons.append(row)
+
+        # Mini App Dashboard 버튼 (전체 대시보드)
+        dash_btn = _dashboard_button()
+        if dash_btn:
+            buttons.append(dash_btn)
 
         detected_date = all_signals[0].get('detected_date', all_signals[0]['peak_date'])
         kb = _keyboard(buttons)
@@ -515,8 +583,12 @@ def run_callback_handler(poll_interval=2, timeout=None):
 # ════════════════════════════════════════════
 
 def send_scan_summary(results):
-    """스캔 결과 요약 전송 (HTML)."""
+    """스캔 결과 요약 전송 (HTML) + Dashboard 버튼."""
     msg = format_scan_summary(results)
+    dash_btn = _dashboard_button()
+    if dash_btn:
+        kb = _keyboard([dash_btn])
+        return _send_message(msg, parse_mode='HTML', reply_markup=kb)
     return _send_message(msg, parse_mode='HTML')
 
 
