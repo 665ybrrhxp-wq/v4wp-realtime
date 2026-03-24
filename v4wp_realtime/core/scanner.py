@@ -69,7 +69,7 @@ def run_scan(alert_fn=None, commentary_fn=None, dry_run=False):
             results['scanned'] += 1
 
             # 일별 스코어 저장
-            score_rows = get_latest_score_data(df, analysis['subindicators'], n_days=5)
+            score_rows = get_latest_score_data(df, analysis['subindicators'], n_days=252)
             for row in score_rows:
                 row['ticker'] = ticker
                 row['er'] = None
