@@ -17,7 +17,9 @@
     "PL":    {"sector": "Space"},
     "ASTS":  {"sector": "Space"},
     "CRCL":  {"sector": "Growth"},
-    "SOFI":  {"sector": "Fintech"}
+    "SOFI":  {"sector": "Fintech"},
+    "VOO":   {"sector": "Index"},
+    "QQQ":   {"sector": "Index"}
   },
   "benchmarks": ["QQQ", "VOO"],
   "params": {
