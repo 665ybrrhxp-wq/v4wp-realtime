@@ -1,13 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ComposedChart, Area, Line, BarChart, Bar, XAxis, YAxis,
-  Tooltip, ResponsiveContainer, ReferenceLine, Cell,
+  Tooltip, ReferenceLine, Cell,
 } from "recharts";
 import { fetchChartData, fetchIndicators } from "../api";
 import Gauge from "./Gauge";
 import SignalBadge from "./SignalBadge";
 
 const mono = "'JetBrains Mono', monospace";
+const PPD = 10; // pixels per data point
 
 const tooltipStyle = {
   background: "var(--tg-secondary-bg)",
@@ -71,7 +72,9 @@ export default function TickerDetail({ ticker }) {
   }));
 
   const signalDates = new Set(signals.map((s) => s.date?.slice(5)));
-  const xInterval = Math.max(Math.floor(days.length / 6) - 1, 0);
+  // 고정 폭: 데이터 포인트 × PPD + Y축 여백
+  const chartW = days.length * PPD + 50;
+  const xInterval = Math.max(Math.floor(days.length / 8) - 1, 0);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -138,10 +141,10 @@ export default function TickerDetail({ ticker }) {
         </div>
       )}
 
-      {/* ── 2. Price Chart ── */}
+      {/* ── 2. Price Chart (좌우 스크롤) ── */}
       <Card label={`PRICE · ${days.length}D`}>
-        <ResponsiveContainer width="100%" height={200}>
-          <ComposedChart data={priceData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+        <ScrollBox>
+          <ComposedChart width={chartW} height={200} data={priceData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
             <XAxis
               dataKey="date"
               tick={{ fontSize: 9, fill: "var(--tg-hint)" }}
@@ -171,7 +174,7 @@ export default function TickerDetail({ ticker }) {
                 <ReferenceLine key={i} x={d.date} stroke="#34d399" strokeDasharray="3 3" strokeWidth={1} />
               ))}
           </ComposedChart>
-        </ResponsiveContainer>
+        </ScrollBox>
 
         {signals.length > 0 && (
           <div style={{ display: "flex", gap: 8, padding: "6px 4px 0", flexWrap: "wrap" }}>
@@ -186,10 +189,10 @@ export default function TickerDetail({ ticker }) {
         )}
       </Card>
 
-      {/* ── 3. s_force 시계열 ── */}
+      {/* ── 3. s_force 시계열 (좌우 스크롤) ── */}
       <Card label="S_FORCE · PV Momentum">
-        <ResponsiveContainer width="100%" height={80}>
-          <BarChart data={forceData} margin={{ top: 2, right: 4, bottom: 0, left: 0 }}>
+        <ScrollBox>
+          <BarChart width={chartW} height={80} data={forceData} margin={{ top: 2, right: 8, bottom: 0, left: 0 }}>
             <XAxis dataKey="date" tick={false} axisLine={{ stroke: "rgba(255,255,255,0.06)" }} />
             <YAxis domain={[-1, 1]} tick={{ fontSize: 8, fill: "var(--tg-hint)" }} tickLine={false} axisLine={false} width={20} ticks={[-1, 0, 1]} />
             <ReferenceLine y={0} stroke="rgba(255,255,255,0.08)" />
@@ -200,13 +203,13 @@ export default function TickerDetail({ ticker }) {
               ))}
             </Bar>
           </BarChart>
-        </ResponsiveContainer>
+        </ScrollBox>
       </Card>
 
-      {/* ── 4. s_div 시계열 ── */}
+      {/* ── 4. s_div 시계열 (좌우 스크롤) ── */}
       <Card label="S_DIV · PV Divergence">
-        <ResponsiveContainer width="100%" height={80}>
-          <BarChart data={divData} margin={{ top: 2, right: 4, bottom: 0, left: 0 }}>
+        <ScrollBox>
+          <BarChart width={chartW} height={80} data={divData} margin={{ top: 2, right: 8, bottom: 0, left: 0 }}>
             <XAxis dataKey="date" tick={false} axisLine={{ stroke: "rgba(255,255,255,0.06)" }} />
             <YAxis domain={[-1, 1]} tick={{ fontSize: 8, fill: "var(--tg-hint)" }} tickLine={false} axisLine={false} width={20} ticks={[-1, 0, 1]} />
             <ReferenceLine y={0} stroke="rgba(255,255,255,0.08)" />
@@ -217,7 +220,7 @@ export default function TickerDetail({ ticker }) {
               ))}
             </Bar>
           </BarChart>
-        </ResponsiveContainer>
+        </ScrollBox>
       </Card>
 
       {/* ── 5. Signal History ── */}
@@ -230,6 +233,27 @@ export default function TickerDetail({ ticker }) {
           </div>
         </Card>
       )}
+    </div>
+  );
+}
+
+/* ── ScrollBox: 좌우 스크롤 컨테이너 (최신 데이터가 먼저 보이도록 오른쪽 끝으로 스크롤) ── */
+function ScrollBox({ children }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.scrollLeft = ref.current.scrollWidth;
+    }
+  }, [children]);
+  return (
+    <div
+      ref={ref}
+      style={{
+        overflowX: "auto",
+        WebkitOverflowScrolling: "touch",
+      }}
+    >
+      {children}
     </div>
   );
 }
