@@ -64,7 +64,7 @@ export default function SimilarSignals({ ticker }) {
           <span style={{ color: "#34d399", fontWeight: 700 }}>{wins}W</span>
           <span style={{ color: "#f87171", fontWeight: 700 }}> {completed.length - wins}L</span>
           {avgR90 && (
-            <span style={{ fontFamily: mono, marginLeft: 6 }}>
+            <span style={{ fontFamily: mono, marginLeft: 6, color: "var(--tg-text)" }}>
               avg {avgR90 >= 0 ? "+" : ""}{avgR90}%
             </span>
           )}
@@ -108,7 +108,7 @@ export default function SimilarSignals({ ticker }) {
           </div>
 
           {/* Result */}
-          <div style={{ fontSize: 10, fontFamily: mono }}>
+          <div style={{ fontSize: 10, fontFamily: mono, color: "var(--tg-hint)" }}>
             {s.return_90d != null ? (
               <>
                 <span style={{ color: "var(--tg-hint)" }}>90d: </span>

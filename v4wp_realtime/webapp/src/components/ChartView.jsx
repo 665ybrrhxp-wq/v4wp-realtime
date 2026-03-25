@@ -45,6 +45,8 @@ export default function ChartView({ ticker }) {
     fontSize: 11,
     color: "var(--tg-text)",
   };
+  const tooltipLabelStyle = { color: "var(--tg-hint)", fontSize: 10 };
+  const tooltipItemStyle = { color: "var(--tg-text)" };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -66,7 +68,7 @@ export default function ChartView({ ticker }) {
               axisLine={false}
               width={42}
             />
-            <Tooltip contentStyle={tooltipStyle} formatter={(v) => [typeof v === "number" ? v.toFixed(2) : v]} />
+            <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} formatter={(v) => [typeof v === "number" ? v.toFixed(2) : v]} />
             <defs>
               <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#818cf8" stopOpacity={0.15} />
@@ -117,7 +119,7 @@ export default function ChartView({ ticker }) {
               ticks={[-1, 0, 1]}
             />
             <ReferenceLine y={0} stroke="rgba(255,255,255,0.08)" />
-            <Tooltip contentStyle={tooltipStyle} />
+            <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
             <Bar dataKey="sForce" radius={[2, 2, 0, 0]}>
               {forceData.map((d, i) => (
                 <Cell key={i} fill={d.fill} fillOpacity={0.7} />

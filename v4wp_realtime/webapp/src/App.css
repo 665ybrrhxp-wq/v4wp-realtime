@@ -45,7 +45,34 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Recharts 툴팁이 모바일에서 잘리지 않도록 */
+/* Recharts 다크모드 강제 — 기본 검정색 텍스트 방지 */
 .recharts-tooltip-wrapper {
   z-index: 100;
+}
+.recharts-default-tooltip {
+  color: var(--tg-text) !important;
+}
+.recharts-tooltip-label {
+  color: var(--tg-hint) !important;
+}
+.recharts-tooltip-item {
+  color: var(--tg-text) !important;
+}
+.recharts-tooltip-item-name,
+.recharts-tooltip-item-separator,
+.recharts-tooltip-item-value,
+.recharts-tooltip-item-unit {
+  color: var(--tg-text) !important;
+}
+/* Recharts 축 라벨 다크모드 */
+.recharts-cartesian-axis-tick-value {
+  fill: var(--tg-hint) !important;
+}
+.recharts-legend-item-text {
+  color: var(--tg-text) !important;
+}
+
+/* Recharts cursor line */
+.recharts-cursor {
+  stroke: rgba(255, 255, 255, 0.2);
 }

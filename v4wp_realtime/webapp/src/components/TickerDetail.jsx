@@ -20,6 +20,8 @@ const tooltipStyle = {
   fontSize: 11,
   color: "var(--tg-text)",
 };
+const tooltipLabelStyle = { color: "var(--tg-hint)", fontSize: 10 };
+const tooltipItemStyle = { color: "var(--tg-text)" };
 
 export default function TickerDetail({ ticker }) {
   const [chart, setChart] = useState(null);
@@ -171,7 +173,7 @@ export default function TickerDetail({ ticker }) {
               axisLine={false}
               width={38}
             />
-            <Tooltip contentStyle={tooltipStyle} formatter={(v) => [typeof v === "number" ? `$${v.toFixed(2)}` : v]} />
+            <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} formatter={(v) => [typeof v === "number" ? `$${v.toFixed(2)}` : v]} />
             <defs>
               <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#818cf8" stopOpacity={0.15} />
@@ -208,7 +210,7 @@ export default function TickerDetail({ ticker }) {
             <XAxis dataKey="date" tick={false} axisLine={{ stroke: "rgba(255,255,255,0.06)" }} />
             <YAxis domain={[-1, 1]} tick={{ fontSize: 8, fill: "var(--tg-hint)" }} tickLine={false} axisLine={false} width={20} ticks={[-1, 0, 1]} />
             <ReferenceLine y={0} stroke="rgba(255,255,255,0.08)" />
-            <Tooltip contentStyle={tooltipStyle} />
+            <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
             <Bar dataKey="val" radius={[1, 1, 0, 0]}>
               {forceData.map((d, i) => (
                 <Cell key={i} fill={d.val >= 0 ? "#34d399" : "#f87171"} fillOpacity={0.7} />
@@ -225,7 +227,7 @@ export default function TickerDetail({ ticker }) {
             <XAxis dataKey="date" tick={false} axisLine={{ stroke: "rgba(255,255,255,0.06)" }} />
             <YAxis domain={[-1, 1]} tick={{ fontSize: 8, fill: "var(--tg-hint)" }} tickLine={false} axisLine={false} width={20} ticks={[-1, 0, 1]} />
             <ReferenceLine y={0} stroke="rgba(255,255,255,0.08)" />
-            <Tooltip contentStyle={tooltipStyle} />
+            <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
             <Bar dataKey="val" radius={[1, 1, 0, 0]}>
               {divData.map((d, i) => (
                 <Cell key={i} fill={d.val >= 0 ? "#818cf8" : "#f87171"} fillOpacity={0.7} />

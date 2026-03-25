@@ -129,8 +129,8 @@ function SignalResult({ sig }) {
             const label = key === "force_expert" ? "F" : key === "div_expert" ? "D" : "C";
             const accColor = ACCURACY_COLOR[p.accuracy] || "var(--tg-hint)";
             return (
-              <span key={key}>
-                <span style={{ fontWeight: 700 }}>{label}:{p.conviction}</span>{" "}
+              <span key={key} style={{ color: "var(--tg-hint)" }}>
+                <span style={{ fontWeight: 700, color: "var(--tg-text)" }}>{label}:{p.conviction}</span>{" "}
                 <span style={{ color: accColor }}>{p.accuracy === "CORRECT" ? "O" : p.accuracy === "OVERCONFIDENT" ? "X" : "?"}</span>
               </span>
             );
@@ -145,8 +145,8 @@ function ReturnChip({ label, value }) {
   if (value == null) return null;
   const color = value >= 0 ? "#34d399" : "#f87171";
   return (
-    <span style={{ fontSize: 10, fontFamily: mono }}>
-      <span style={{ color: "var(--tg-hint)" }}>{label}:</span>{" "}
+    <span style={{ fontSize: 10, fontFamily: mono, color: "var(--tg-hint)" }}>
+      <span>{label}:</span>{" "}
       <span style={{ color, fontWeight: 600 }}>{value >= 0 ? "+" : ""}{value}%</span>
     </span>
   );
