@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from starlette.responses import StreamingResponse
+from starlette.responses import StreamingResponse, JSONResponse
 
 from v4wp_realtime.data.store import get_connection, init_db
 from v4wp_realtime.config.settings import load_watchlist, DB_PATH
@@ -147,7 +147,8 @@ def get_signals(ticker: str, days: int = Query(default=90, ge=1, le=365)):
                  signal_tier,
                  action_pct,
                  commentary,
-                 detected_date
+                 detected_date,
+                 interpretation
                FROM signal_events
                WHERE ticker = ?
                  AND peak_date >= date('now', ?)
@@ -161,6 +162,11 @@ def get_signals(ticker: str, days: int = Query(default=90, ge=1, le=365)):
     for r in _rows_to_dicts(rows):
         r["direction"] = "LONG" if r["signal_type"] == "bottom" else "SHORT"
         r["squeeze"] = bool(r["s_conc"] and abs(r["s_conc"]) > 0)
+        if r.get("interpretation"):
+            try:
+                r["interpretation"] = json.loads(r["interpretation"])
+            except (json.JSONDecodeError, TypeError):
+                r["interpretation"] = None
         result.append(r)
 
     return result
@@ -267,6 +273,93 @@ def get_indicators(ticker: str):
         "pipeline": pipeline,
         "filters": filters,
     }
+
+
+# ── 3b. GET /api/interpretation/{ticker} ──────────────────────────────
+@app.get("/api/interpretation/{ticker}")
+def get_interpretation(ticker: str):
+    """최신 AI 멀티 페르소나 해석."""
+    try:
+        conn = _db()
+    except Exception:
+        return {"ticker": ticker.upper(), "interpretation": None}
+
+    try:
+        row = conn.execute(
+            """SELECT interpretation, peak_date, signal_type, signal_tier
+               FROM signal_events
+               WHERE ticker = ? AND interpretation IS NOT NULL
+               ORDER BY peak_date DESC LIMIT 1""",
+            (ticker.upper(),),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if not row or not row["interpretation"]:
+        return {"ticker": ticker.upper(), "interpretation": None}
+
+    try:
+        interp = json.loads(row["interpretation"])
+    except (json.JSONDecodeError, TypeError):
+        interp = None
+
+    return {
+        "ticker": ticker.upper(),
+        "peak_date": row["peak_date"],
+        "signal_type": row["signal_type"],
+        "signal_tier": row["signal_tier"],
+        "interpretation": interp,
+    }
+
+
+# ── 3c. GET /api/postmortem/{ticker} ───────────────────────────────────
+@app.get("/api/postmortem/{ticker}")
+def get_postmortem(ticker: str):
+    """시그널 사후 검증 결과 + 페르소나 정확도."""
+    try:
+        conn = _db()
+    except Exception:
+        return {"ticker": ticker.upper(), "stats": None}
+
+    try:
+        from v4wp_realtime.core.postmortem import get_postmortem_stats
+        stats = get_postmortem_stats(conn, ticker.upper())
+    finally:
+        conn.close()
+
+    return {"ticker": ticker.upper(), **stats}
+
+
+# ── 3d. GET /api/similar-signals/{ticker} ─────────────────────────────
+@app.get("/api/similar-signals/{ticker}")
+def get_similar_signals(ticker: str):
+    """최신 시그널의 유사 과거 시그널 Top 5."""
+    try:
+        conn = _db()
+    except Exception:
+        return {"ticker": ticker.upper(), "similar": []}
+
+    try:
+        # 해당 티커의 최신 시그널 조회
+        row = conn.execute(
+            """SELECT id, s_force, s_div, peak_val, start_val, dd_pct, duration,
+                      market_return_20d, vix_change_20d
+               FROM signal_events
+               WHERE ticker = ?
+               ORDER BY peak_date DESC LIMIT 1""",
+            (ticker.upper(),),
+        ).fetchone()
+
+        if not row:
+            return {"ticker": ticker.upper(), "similar": []}
+
+        from v4wp_realtime.core.similarity import find_similar_signals
+        signal = dict(row)
+        similar = find_similar_signals(conn, signal, exclude_id=row['id'])
+    finally:
+        conn.close()
+
+    return {"ticker": ticker.upper(), "similar": similar}
 
 
 # ── 4. GET /api/chart-data/{ticker} ──────────────────────────────────

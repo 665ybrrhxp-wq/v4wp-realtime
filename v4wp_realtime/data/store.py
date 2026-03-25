@@ -26,12 +26,37 @@ def get_connection(db_path=None):
 
 
 def init_db(db_path=None):
-    """스키마 초기화 (테이블 없으면 생성)"""
+    """스키마 초기화 (테이블 없으면 생성) + 기존 DB 마이그레이션"""
     conn = get_connection(db_path)
     with open(SCHEMA_PATH, 'r', encoding='utf-8') as f:
         conn.executescript(f.read())
     conn.commit()
+    migrate_db(conn)
     conn.close()
+
+
+def migrate_db(conn):
+    """기존 DB에 새 컬럼 추가 (없으면 ALTER TABLE)."""
+    new_columns = [
+        ("dd_pct", "REAL"),
+        ("duration", "INTEGER"),
+        ("market_return_20d", "REAL"),
+        ("sector_return_20d", "REAL"),
+        ("vix_change_20d", "REAL"),
+        ("return_5d", "REAL"),
+        ("return_20d", "REAL"),
+        ("return_90d", "REAL"),
+        ("max_dd_90d", "REAL"),
+        ("postmortem", "TEXT"),
+    ]
+    for col_name, col_type in new_columns:
+        try:
+            conn.execute(
+                f"ALTER TABLE signal_events ADD COLUMN {col_name} {col_type}"
+            )
+        except sqlite3.OperationalError:
+            pass  # 이미 존재
+    conn.commit()
 
 
 def upsert_daily_scores(conn, rows):
@@ -63,11 +88,16 @@ def insert_signal_event(conn, event):
             """INSERT INTO signal_events
                (ticker, signal_type, peak_date, peak_val, start_val, close_price,
                 detected_date, notified, commentary, s_force, s_div, s_conc, er, atr_pct,
-                signal_tier, action_pct)
+                signal_tier, action_pct, interpretation,
+                dd_pct, duration, market_return_20d, sector_return_20d,
+                vix_change_20d)
                VALUES (:ticker, :signal_type, :peak_date, :peak_val, :start_val, :close_price,
                        :detected_date, :notified, :commentary,
                        :s_force, :s_div, :s_conc, :er, :atr_pct,
-                       :signal_tier, :action_pct)""",
+                       :signal_tier, :action_pct, :interpretation,
+                       :dd_pct, :duration,
+                       :market_return_20d, :sector_return_20d,
+                       :vix_change_20d)""",
             event
         )
         conn.commit()

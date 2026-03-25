@@ -61,6 +61,12 @@ def restore_signals_to_db(signals):
             'atr_pct': s.get('atr_pct'),
             'signal_tier': s.get('signal_tier', 'CONFIRMED'),
             'action_pct': s.get('action_pct', 1.0),
+            'interpretation': s.get('interpretation'),
+            'dd_pct': s.get('dd_pct'),
+            'duration': s.get('duration'),
+            'market_return_20d': s.get('market_return_20d'),
+            'sector_return_20d': s.get('sector_return_20d'),
+            'vix_change_20d': s.get('vix_change_20d'),
         }
         if insert_signal_event(conn, event):
             restored += 1
@@ -83,17 +89,24 @@ def main():
     if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID:
         alert_fn = send_signal_alert
 
-    # AI 코멘터리 함수 설정
+    # AI 코멘터리 함수 설정 (Telegram용 한줄평)
     commentary_fn = None
     if CLAUDE_API_KEY:
         from v4wp_realtime.ai.commentary import generate_commentary
         commentary_fn = generate_commentary
+
+    # AI 해석기 함수 설정 (Dashboard용 멀티 페르소나)
+    interpretation_fn = None
+    if CLAUDE_API_KEY:
+        from v4wp_realtime.ai.signal_interpreter import generate_interpretation
+        interpretation_fn = generate_interpretation
 
     print('=' * 60)
     print('  V4_wP Daily Scan (BUY only)')
     print('=' * 60)
     print(f'  Telegram: {"ON" if alert_fn else "OFF"}')
     print(f'  AI Commentary: {"ON" if commentary_fn else "OFF"}')
+    print(f'  AI Interpreter: {"ON" if interpretation_fn else "OFF"}')
 
     # 1) DB 초기화 + JSON 히스토리에서 기존 신호 복원
     init_db()
@@ -103,7 +116,11 @@ def main():
     print()
 
     # 2) 스캔 실행
-    results = run_scan(alert_fn=alert_fn, commentary_fn=commentary_fn)
+    results = run_scan(
+        alert_fn=alert_fn,
+        commentary_fn=commentary_fn,
+        interpretation_fn=interpretation_fn,
+    )
 
     print(f'\n  Scan Complete:')
     print(f'  Scanned: {results["scanned"]} tickers')
@@ -130,7 +147,22 @@ def main():
         except Exception as e:
             print(f'\n  Scan report send failed: {e}')
 
-    # 4) JSON 히스토리 업데이트
+    # 4) Post-Mortem: 기존 시그널의 forward return 업데이트
+    try:
+        from v4wp_realtime.core.postmortem import run_postmortem
+        pm_conn = get_connection()
+        pm_stats = run_postmortem(pm_conn)
+        pm_conn.close()
+        total_pm = pm_stats['updated_5d'] + pm_stats['updated_20d'] + pm_stats['updated_90d']
+        if total_pm > 0:
+            print(f'\n  Post-Mortem: 5d={pm_stats["updated_5d"]}, '
+                  f'20d={pm_stats["updated_20d"]}, 90d={pm_stats["updated_90d"]}')
+        else:
+            print(f'\n  Post-Mortem: no updates (pending)')
+    except Exception as e:
+        print(f'\n  Post-Mortem error: {e}')
+
+    # 5) JSON 히스토리 업데이트
     if results['new_signals']:
         total = save_signal_history(history, results['new_signals'])
         print(f'\n  Signal history updated: {total} total signals')

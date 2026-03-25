@@ -19,7 +19,10 @@
     "signal_tier": "CONFIRMED",
     "is_strong": true,
     "signal_label": "BUY (CONFIRMED)",
-    "action_pct": 1.0
+    "action_pct": 1.0,
+    "market_return_20d": -0.0026,
+    "vix_change_20d": 0.1413,
+    "sector_return_20d": -0.0056
   },
   {
     "ticker": "NVDA",
@@ -42,7 +45,10 @@
     "signal_tier": "CONFIRMED",
     "is_strong": true,
     "signal_label": "BUY (CONFIRMED)",
-    "action_pct": 1.0
+    "action_pct": 1.0,
+    "market_return_20d": -0.0223,
+    "vix_change_20d": 0.2446,
+    "sector_return_20d": -0.0113
   },
   {
     "ticker": "QQQ",
@@ -65,7 +71,10 @@
     "signal_tier": "CONFIRMED",
     "is_strong": true,
     "signal_label": "BUY (CONFIRMED)",
-    "action_pct": 1.0
+    "action_pct": 1.0,
+    "market_return_20d": -0.0223,
+    "vix_change_20d": 0.2446,
+    "sector_return_20d": -0.0223
   },
   {
     "ticker": "VOO",
@@ -88,6 +97,9 @@
     "signal_tier": "CONFIRMED",
     "is_strong": true,
     "signal_label": "BUY (CONFIRMED)",
-    "action_pct": 1.0
+    "action_pct": 1.0,
+    "market_return_20d": -0.0223,
+    "vix_change_20d": 0.2446,
+    "sector_return_20d": -0.0223
   }
 ]

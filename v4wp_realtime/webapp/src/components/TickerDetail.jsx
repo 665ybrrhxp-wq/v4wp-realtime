@@ -6,6 +6,9 @@ import {
 import { fetchChartData, fetchIndicators } from "../api";
 import Gauge from "./Gauge";
 import SignalBadge from "./SignalBadge";
+import AIInterpretation from "./AIInterpretation";
+import PostMortem from "./PostMortem";
+import SimilarSignals from "./SimilarSignals";
 
 const mono = "'JetBrains Mono', monospace";
 const PPD = 10; // pixels per data point
@@ -140,6 +143,15 @@ export default function TickerDetail({ ticker }) {
           />
         </div>
       )}
+
+      {/* ── 1c. AI Signal Interpretation ── */}
+      <AIInterpretation ticker={ticker} />
+
+      {/* ── 1d. Post-Mortem ── */}
+      <PostMortem ticker={ticker} />
+
+      {/* ── 1e. Similar Signals ── */}
+      <SimilarSignals ticker={ticker} />
 
       {/* ── 2. Price Chart (좌우 스크롤) ── */}
       <Card label={`PRICE · ${days.length}D`}>

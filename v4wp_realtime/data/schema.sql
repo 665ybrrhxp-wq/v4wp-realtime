@@ -33,6 +33,17 @@ CREATE TABLE IF NOT EXISTS signal_events (
     atr_pct REAL,
     signal_tier TEXT,
     action_pct REAL,
+    interpretation TEXT,
+    dd_pct REAL,
+    duration INTEGER,
+    market_return_20d REAL,
+    sector_return_20d REAL,
+    vix_change_20d REAL,
+    return_5d REAL,
+    return_20d REAL,
+    return_90d REAL,
+    max_dd_90d REAL,
+    postmortem TEXT,
     UNIQUE(ticker, signal_type, peak_date)
 );
 

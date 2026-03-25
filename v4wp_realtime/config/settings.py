@@ -31,10 +31,21 @@ def load_watchlist():
         return json.load(f)
 
 
+# 섹터 → ETF 매핑 (유사 시그널 검색에서 시장/섹터 컨텍스트용)
+SECTOR_ETF_MAP = {
+    "Tech": "XLK",
+    "Growth": "IWO",
+    "Fintech": "XLF",
+    "Quantum": "XLK",
+    "Space": "ITA",
+    "Benchmark": None,
+    "Index": None,
+}
+
 # API Keys (환경변수에서 로딩)
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
 TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID', '')
-CLAUDE_API_KEY = os.environ.get('CLAUDE_API_KEY', '')
+CLAUDE_API_KEY = os.environ.get('CLAUDE_API_KEY', '') or os.environ.get('ANTHROPIC_API_KEY', '')
 
 # Telegram Mini App 설정
 # BOT_USERNAME: BotFather에서 설정한 봇 유저네임 (@ 제외)

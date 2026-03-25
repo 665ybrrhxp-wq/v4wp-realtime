@@ -241,6 +241,73 @@ def export_indicators(conn, ticker, params=None):
         json.dump(result, f, ensure_ascii=False)
 
 
+def export_interpretation(conn, ticker):
+    """interpretation/{TICKER}.json — latest AI multi-persona interpretation."""
+    row = conn.execute(
+        """SELECT interpretation, peak_date, signal_type, signal_tier
+           FROM signal_events
+           WHERE ticker = ? AND interpretation IS NOT NULL
+           ORDER BY peak_date DESC LIMIT 1""",
+        (ticker,),
+    ).fetchone()
+
+    if not row or not row['interpretation']:
+        result = {'ticker': ticker, 'interpretation': None}
+    else:
+        try:
+            interp = json.loads(row['interpretation'])
+        except (json.JSONDecodeError, TypeError):
+            interp = None
+        result = {
+            'ticker': ticker,
+            'peak_date': row['peak_date'],
+            'signal_type': row['signal_type'],
+            'signal_tier': row['signal_tier'],
+            'interpretation': interp,
+        }
+
+    out = DIST_DATA / 'interpretation' / f'{ticker}.json'
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with open(out, 'w', encoding='utf-8') as f:
+        json.dump(result, f, ensure_ascii=False)
+
+
+def export_postmortem(conn, ticker):
+    """postmortem/{TICKER}.json — 시그널 사후 검증 결과."""
+    from v4wp_realtime.core.postmortem import get_postmortem_stats
+    stats = get_postmortem_stats(conn, ticker)
+    result = {'ticker': ticker, **stats}
+
+    out = DIST_DATA / 'postmortem' / f'{ticker}.json'
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with open(out, 'w', encoding='utf-8') as f:
+        json.dump(result, f, ensure_ascii=False)
+
+
+def export_similar_signals(conn, ticker):
+    """similar/{TICKER}.json — 최신 시그널의 유사 과거 시그널."""
+    row = conn.execute(
+        """SELECT id, s_force, s_div, peak_val, start_val, dd_pct, duration
+           FROM signal_events
+           WHERE ticker = ?
+           ORDER BY peak_date DESC LIMIT 1""",
+        (ticker,),
+    ).fetchone()
+
+    if not row:
+        result = {'ticker': ticker, 'similar': []}
+    else:
+        from v4wp_realtime.core.similarity import find_similar_signals
+        signal = dict(row)
+        similar = find_similar_signals(conn, signal, exclude_id=row['id'])
+        result = {'ticker': ticker, 'similar': similar}
+
+    out = DIST_DATA / 'similar' / f'{ticker}.json'
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with open(out, 'w', encoding='utf-8') as f:
+        json.dump(result, f, ensure_ascii=False)
+
+
 def main():
     if not DB_PATH.exists():
         print('  No DB found — initializing')
@@ -256,6 +323,9 @@ def main():
     for t in tickers:
         export_chart_data(conn, t)
         export_indicators(conn, t, wl_params)
+        export_interpretation(conn, t)
+        export_postmortem(conn, t)
+        export_similar_signals(conn, t)
 
     # 스파크라인용 (20일 데이터)
     spark_dir = DIST_DATA / 'spark'

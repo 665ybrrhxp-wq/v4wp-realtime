@@ -3,7 +3,8 @@ import warnings
 warnings.filterwarnings('ignore')
 
 from datetime import datetime
-from v4wp_realtime.config.settings import load_watchlist
+import pandas as pd
+from v4wp_realtime.config.settings import load_watchlist, SECTOR_ETF_MAP
 from v4wp_realtime.core.indicators import fetch_data, analyze_ticker, classify_signal, get_latest_score_data
 from v4wp_realtime.core.signal_tracker import is_new_signal, extract_recent_events
 from v4wp_realtime.data.store import (
@@ -12,7 +13,7 @@ from v4wp_realtime.data.store import (
 )
 
 
-def run_scan(alert_fn=None, commentary_fn=None, dry_run=False):
+def run_scan(alert_fn=None, commentary_fn=None, interpretation_fn=None, dry_run=False):
     """전체 워치리스트 스캔 (VN60+GEO-OP 알고리즘, 매수 전용).
 
     파이프라인:
@@ -54,6 +55,31 @@ def run_scan(alert_fn=None, commentary_fn=None, dry_run=False):
     }
 
     all_tickers = list(tickers.keys()) + wl.get('benchmarks', [])
+
+    # ── 시장/섹터 ETF + VIX 20일 변화율 사전 계산 ──
+    qqq_ret20 = None
+    sector_ret20_map = {}
+    vix_change_20d_series = None
+    try:
+        qqq_df = fetch_data('QQQ', years=params.get('data_years', 3))
+        if qqq_df is not None and len(qqq_df) >= 40:
+            qqq_ret20 = qqq_df['Close'] / qqq_df['Close'].shift(20) - 1.0
+        for etf in set(v for v in SECTOR_ETF_MAP.values() if v):
+            etf_df = fetch_data(etf, years=params.get('data_years', 3))
+            if etf_df is not None and len(etf_df) >= 40:
+                sector_ret20_map[etf] = etf_df['Close'] / etf_df['Close'].shift(20) - 1.0
+    except Exception:
+        pass
+    try:
+        import yfinance as yf
+        vix_df = yf.download('^VIX', period=f'{params.get("data_years", 3)}y', progress=False)
+        if vix_df is not None and len(vix_df) >= 40:
+            vix_close = vix_df['Close']
+            if hasattr(vix_close, 'columns'):
+                vix_close = vix_close.iloc[:, 0]
+            vix_change_20d_series = vix_close / vix_close.shift(20) - 1.0
+    except Exception:
+        pass
 
     # 앨범 전송용 배치 수집
     pending_alerts = []  # list of (signal_data, chart_bytes)
@@ -127,20 +153,79 @@ def run_scan(alert_fn=None, commentary_fn=None, dry_run=False):
                     'is_strong': classification['is_strong'],
                     'signal_label': classification['label'],
                     'action_pct': classification['action_pct'],
+                    'market_return_20d': None,
+                    'sector_return_20d': None,
+                    'vix_change_20d': None,
                 }
+
+                # 시장/섹터 컨텍스트
+                peak_ts = df.index[peak_idx]
+                if qqq_ret20 is not None:
+                    mask = qqq_ret20.index <= peak_ts
+                    if mask.any():
+                        val = qqq_ret20.loc[mask].iloc[-1]
+                        if pd.notna(val):
+                            signal_data['market_return_20d'] = round(float(val), 4)
+                sector_etf = SECTOR_ETF_MAP.get(sector)
+                if sector_etf is None and ticker in ('QQQ', 'VOO'):
+                    ret20 = df['Close'] / df['Close'].shift(20) - 1.0
+                    val = ret20.iloc[peak_idx]
+                    if pd.notna(val):
+                        signal_data['sector_return_20d'] = round(float(val), 4)
+                elif sector_etf and sector_etf in sector_ret20_map:
+                    s_series = sector_ret20_map[sector_etf]
+                    mask = s_series.index <= peak_ts
+                    if mask.any():
+                        val = s_series.loc[mask].iloc[-1]
+                        if pd.notna(val):
+                            signal_data['sector_return_20d'] = round(float(val), 4)
+                if vix_change_20d_series is not None:
+                    mask = vix_change_20d_series.index <= peak_ts
+                    if mask.any():
+                        val = vix_change_20d_series.loc[mask].iloc[-1]
+                        if pd.notna(val):
+                            signal_data['vix_change_20d'] = round(float(val), 4)
 
                 # 신규 판별
                 if dry_run or (conn and is_new_signal(conn, ticker, ev['type'], ev['peak_date'])):
-                    # AI 코멘터리
+                    # AI 코멘터리 (Telegram용 한줄평)
+                    context = {
+                        'score_history': score_rows,
+                        'recent_events': recent,
+                    }
+
+                    # 유사 시그널 검색 (AI 의장에게 추가 맥락 제공)
+                    if not dry_run and conn:
+                        try:
+                            from v4wp_realtime.core.similarity import (
+                                find_similar_signals, build_similar_signals_context,
+                            )
+                            similar = find_similar_signals(conn, signal_data)
+                            if similar:
+                                sim_text = build_similar_signals_context(similar)
+                                if sim_text:
+                                    context['similar_signals_text'] = sim_text
+                        except Exception:
+                            pass
                     if commentary_fn:
                         try:
-                            context = {
-                                'score_history': score_rows,
-                                'recent_events': recent,
-                            }
                             signal_data['commentary'] = commentary_fn(signal_data, context)
                         except Exception:
                             pass
+
+                    # AI 해석기 (Dashboard용 멀티 페르소나)
+                    if interpretation_fn:
+                        try:
+                            import json as _json
+                            interp = interpretation_fn(signal_data, context)
+                            if interp:
+                                signal_data['interpretation'] = _json.dumps(
+                                    interp, ensure_ascii=False
+                                )
+                        except Exception:
+                            pass
+                    if 'interpretation' not in signal_data:
+                        signal_data['interpretation'] = None
 
                     # DB 저장
                     if not dry_run and conn:

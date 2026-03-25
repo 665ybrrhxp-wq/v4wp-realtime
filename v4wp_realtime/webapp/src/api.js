@@ -7,7 +7,7 @@
  */
 
 const BASE = import.meta.env.VITE_API_BASE_URL || "";
-const IS_STATIC = !BASE;
+const IS_STATIC = !BASE && import.meta.env.PROD;
 
 async function fetchJSON(path) {
   const res = await fetch(`${BASE}${path}`);
@@ -31,6 +31,24 @@ export function fetchChartData(ticker, days = 60) {
 export function fetchIndicators(ticker) {
   if (IS_STATIC) return fetchJSON(`./data/indicators/${ticker.toUpperCase()}.json`);
   return fetchJSON(`/api/indicators/${ticker}`);
+}
+
+/** AI 멀티 페르소나 해석 */
+export function fetchInterpretation(ticker) {
+  if (IS_STATIC) return fetchJSON(`./data/interpretation/${ticker.toUpperCase()}.json`);
+  return fetchJSON(`/api/interpretation/${ticker}`);
+}
+
+/** Post-Mortem 사후 검증 */
+export function fetchPostMortem(ticker) {
+  if (IS_STATIC) return fetchJSON(`./data/postmortem/${ticker.toUpperCase()}.json`);
+  return fetchJSON(`/api/postmortem/${ticker}`);
+}
+
+/** 유사 시그널 */
+export function fetchSimilarSignals(ticker) {
+  if (IS_STATIC) return fetchJSON(`./data/similar/${ticker.toUpperCase()}.json`);
+  return fetchJSON(`/api/similar-signals/${ticker}`);
 }
 
 /** 스파크라인 데이터 (정적 모드용) */
