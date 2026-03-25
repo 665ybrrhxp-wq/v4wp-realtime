@@ -287,7 +287,8 @@ def export_postmortem(conn, ticker):
 def export_similar_signals(conn, ticker):
     """similar/{TICKER}.json — 최신 시그널의 유사 과거 시그널."""
     row = conn.execute(
-        """SELECT id, s_force, s_div, peak_val, start_val, dd_pct, duration
+        """SELECT id, s_force, s_div, peak_val, start_val, dd_pct, duration,
+                  market_return_20d, vix_change_20d
            FROM signal_events
            WHERE ticker = ?
            ORDER BY peak_date DESC LIMIT 1""",
