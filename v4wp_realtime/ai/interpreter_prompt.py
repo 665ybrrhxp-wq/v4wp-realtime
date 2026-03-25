@@ -184,8 +184,8 @@ def build_interpreter_prompt(signal: dict, context: dict = None) -> str:
                 )
         score_trend = '\n'.join(trend_lines) if trend_lines else 'N/A'
 
-    dd_pct = signal.get('dd_pct', 0)
-    duration = signal.get('duration', 1)
+    dd_pct = signal.get('dd_pct') or 0
+    duration = signal.get('duration') or 1
 
     # 유사 시그널 컨텍스트 (있으면 추가)
     similar_section = ""
