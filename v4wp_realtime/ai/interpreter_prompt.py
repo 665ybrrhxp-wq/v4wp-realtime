@@ -166,6 +166,31 @@ analysis 포맷 (반드시 이 볼드 태그를 사용):
 - "과거 유사 시그널" 섹션이 사용자 프롬프트에 제공되면, 의장은 이 데이터를 판단 근거로 활용하라
 - 유사 시그널의 승률과 평균 수익률을 언급하고, 현재 신호와의 차이점을 분석하라
 - 유사 시그널이 없거나 결과가 대기 중이면 해당 섹션을 무시하라
+
+================================================================
+섹션 5: 매크로 레짐 역발상 확신도
+================================================================
+
+V4_wP는 본질적으로 역발상 시스템이다. 백테스트 검증(461 시그널) 결과:
+  - BEAR_STRONG(공포 극대) 시그널: 승률 68%, 90d +35% → 확신도 HIGH
+  - BEAR_WEAK(약세장) 시그널: 승률 64%, 90d +19% → 확신도 MID
+  - BULL_WEAK(약한 상승) 시그널: 승률 53%, 90d +23% → 확신도 LOW
+  - BULL_STRONG(과열) 시그널: 승률 53%, 90d +8% → 확신도 CAUTION
+
+[의장 레짐 반영 지침]
+- market_regime이 BEAR_STRONG이면: "역발상 매수 확신도가 높은 구간"임을 언급하고, confidence를 상향 조정
+- market_regime이 BULL_STRONG이면: "과열 구간이므로 보수적 접근 필요"임을 언급하고, confidence를 하향 조정
+- 레짐 정보가 UNKNOWN이거나 없으면 레짐 관련 언급을 생략하라
+
+================================================================
+섹션 6: 페르소나 과거 실적 환류
+================================================================
+
+- "페르소나 과거 실적" 섹션이 사용자 프롬프트에 제공되면, 각 전문가는 자신의 과거 적중률을 참고하라
+- 적중률이 낮은 전문가(< 50%)는 자신의 판단을 한 단계 보수적으로 보정하라
+  (예: conviction 5를 주려 했다면 4로 낮추는 것을 고려)
+- 적중률이 높은 전문가(≥ 70%)는 자신의 판단에 더 확신을 가져도 된다
+- 과거 실적이 없거나 5건 미만이면 해당 섹션을 무시하라
 """
 
 
@@ -195,6 +220,42 @@ def build_interpreter_prompt(signal: dict, context: dict = None) -> str:
 === 과거 유사 시그널 ===
 {context['similar_signals_text']}"""
 
+    # 페르소나 과거 실적 컨텍스트 (total_completed >= 5일 때만)
+    accuracy_section = ""
+    if context and context.get('persona_accuracy'):
+        pa = context['persona_accuracy']
+        total = context.get('total_completed', 0)
+        if total >= 5:
+            lines = []
+            label_map = {
+                'force_expert': 'Force Expert',
+                'div_expert': 'Div Expert',
+                'chairman': 'Chairman',
+            }
+            for key, label in label_map.items():
+                stats = pa.get(key, {})
+                t = stats.get('total', 0)
+                c = stats.get('correct', 0)
+                if t > 0:
+                    pct = c / t * 100
+                    lines.append(f"  {label}: 적중률 {pct:.0f}% ({c}/{t}건)")
+            if lines:
+                accuracy_section = "\n\n=== 페르소나 과거 실적 ===\n"
+                accuracy_section += f"완료 시그널: {total}건\n"
+                accuracy_section += '\n'.join(lines)
+
+    # 매크로 레짐 컨텍스트
+    regime = signal.get('market_regime', 'UNKNOWN')
+    regime_section = ""
+    if regime and regime != 'UNKNOWN':
+        mkt_ret = signal.get('market_return_20d')
+        vix_chg = signal.get('vix_change_20d')
+        mkt_str = f"{mkt_ret:+.1%}" if mkt_ret is not None else "N/A"
+        vix_str = f"{vix_chg:+.1%}" if vix_chg is not None else "N/A"
+        from v4wp_realtime.core.regime import get_conviction
+        conv = get_conviction(regime)
+        regime_section = f"\n매크로 레짐: {regime} (역발상 확신도: {conv['conviction']}, QQQ 20d: {mkt_str}, VIX 20d: {vix_str})"
+
     return f"""다음 매수 신호를 3명의 전문가 관점에서 분석해주세요.
 
 === 신호 데이터 ===
@@ -207,9 +268,9 @@ S_Force: {signal['s_force']:.4f}
 S_Div: {signal['s_div']:.4f}
 DD%: {dd_pct:.2f}% (20일 고점 대비 하락률)
 신호 지속일: {duration}일
-피크 날짜: {signal['peak_date']}
+피크 날짜: {signal['peak_date']}{regime_section}
 
 === 최근 10일 스코어 추이 ===
-{score_trend}{similar_section}
+{score_trend}{similar_section}{accuracy_section}
 
 각 전문가의 분석을 시작해주세요. confidence_score는 반드시 공식에 따라 계산하세요."""

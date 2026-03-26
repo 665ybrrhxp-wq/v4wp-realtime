@@ -67,6 +67,7 @@ def restore_signals_to_db(signals):
             'market_return_20d': s.get('market_return_20d'),
             'sector_return_20d': s.get('sector_return_20d'),
             'vix_change_20d': s.get('vix_change_20d'),
+            'market_regime': s.get('market_regime'),
         }
         if insert_signal_event(conn, event):
             restored += 1
@@ -139,15 +140,33 @@ def main():
         for ticker, err in results['errors']:
             print(f'    {ticker}: {err}')
 
-    # 3) 스캔 리포트 전송 (신호 유무 관계없이)
+    # 3) Watch Alert: DD Gate 근접 종목 알림
+    watch_alerts = results.get('watch_alerts', [])
+    if watch_alerts:
+        print(f'\n  Watch Alerts ({len(watch_alerts)}):')
+        for w in watch_alerts:
+            gap = w['dd_threshold'] * 100 - w['dd_pct'] * 100
+            print(f'    \u23f3 {w["ticker"]} DD {w["dd_pct"]*100:.1f}%'
+                  f' (threshold {w["dd_threshold"]*100:.1f}%, {gap:.1f}%p left)')
+
     if alert_fn:
+        # Watch Alert 전송
+        if watch_alerts:
+            try:
+                from v4wp_realtime.alerts.telegram_bot import send_watch_alert
+                send_watch_alert(watch_alerts)
+                print(f'\n  Watch alert sent to Telegram ({len(watch_alerts)} tickers)')
+            except Exception as e:
+                print(f'\n  Watch alert send failed: {e}')
+
+        # 4) 스캔 리포트 전송 (신호 유무 관계없이)
         try:
             send_scan_summary(results)
             print(f'\n  Scan report sent to Telegram')
         except Exception as e:
             print(f'\n  Scan report send failed: {e}')
 
-    # 4) Post-Mortem: 기존 시그널의 forward return 업데이트
+    # 5) Post-Mortem: 기존 시그널의 forward return 업데이트
     try:
         from v4wp_realtime.core.postmortem import run_postmortem
         pm_conn = get_connection()
@@ -162,7 +181,7 @@ def main():
     except Exception as e:
         print(f'\n  Post-Mortem error: {e}')
 
-    # 5) JSON 히스토리 업데이트
+    # 6) JSON 히스토리 업데이트
     if results['new_signals']:
         total = save_signal_history(history, results['new_signals'])
         print(f'\n  Signal history updated: {total} total signals')

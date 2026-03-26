@@ -7,6 +7,7 @@ import pandas as pd
 from v4wp_realtime.config.settings import load_watchlist, SECTOR_ETF_MAP
 from v4wp_realtime.core.indicators import fetch_data, analyze_ticker, classify_signal, get_latest_score_data
 from v4wp_realtime.core.signal_tracker import is_new_signal, extract_recent_events
+from v4wp_realtime.core.regime import classify_regime, get_conviction
 from v4wp_realtime.data.store import (
     get_connection, init_db, upsert_daily_scores,
     insert_signal_event, log_scan_run,
@@ -45,12 +46,15 @@ def run_scan(alert_fn=None, commentary_fn=None, interpretation_fn=None, dry_run=
         conn = get_connection()
 
     start_time = datetime.now()
+    buy_dd_threshold = params.get('buy_dd_threshold', 0.03)
+
     results = {
         'date': today,
         'scanned': 0,
         'errors': [],
         'new_signals': [],
         'blocked_buys': [],
+        'watch_alerts': [],
         'scores': [],
     }
 
@@ -106,14 +110,26 @@ def run_scan(alert_fn=None, commentary_fn=None, interpretation_fn=None, dry_run=
                 upsert_daily_scores(conn, score_rows)
 
             # 차단된 매수 신호 기록 (DD 게이트 미통과)
-            for ev in analysis.get('blocked_buys', []):
-                peak_date = df.index[ev['peak_idx']].strftime('%Y-%m-%d')
-                results['blocked_buys'].append({
+            recent_blocked = extract_recent_events(
+                analysis.get('blocked_buys', []), df, lookback_days=10
+            )
+            for ev in recent_blocked:
+                blocked = {
                     'ticker': ticker,
-                    'peak_date': peak_date,
+                    'sector': tickers.get(ticker, {}).get('sector', 'Benchmark'),
+                    'peak_date': ev['peak_date'],
                     'peak_val': ev['peak_val'],
                     'close_price': float(df['Close'].iloc[ev['peak_idx']]),
-                })
+                    'dd_pct': ev.get('dd_pct', 0),
+                    'dd_threshold': buy_dd_threshold,
+                    's_force': float(analysis['subindicators']['s_force'].iloc[ev['peak_idx']]),
+                    's_div': float(analysis['subindicators']['s_div'].iloc[ev['peak_idx']]),
+                }
+                results['blocked_buys'].append(blocked)
+
+                # Watch Alert: threshold의 80% 이상이면 근접 알림 대상
+                if ev.get('dd_pct', 0) >= buy_dd_threshold * 0.8:
+                    results['watch_alerts'].append(blocked)
 
             # 최근 신호 추출 (필터 적용된 것만)
             recent = extract_recent_events(analysis['filtered_events'], df, lookback_days=10)
@@ -186,6 +202,12 @@ def run_scan(alert_fn=None, commentary_fn=None, interpretation_fn=None, dry_run=
                         if pd.notna(val):
                             signal_data['vix_change_20d'] = round(float(val), 4)
 
+                # 매크로 레짐 분류 (역발상 확신도)
+                signal_data['market_regime'] = classify_regime(
+                    signal_data.get('market_return_20d'),
+                    signal_data.get('vix_change_20d'),
+                )
+
                 # 신규 판별
                 if dry_run or (conn and is_new_signal(conn, ticker, ev['type'], ev['peak_date'])):
                     # AI 코멘터리 (Telegram용 한줄평)
@@ -207,6 +229,17 @@ def run_scan(alert_fn=None, commentary_fn=None, interpretation_fn=None, dry_run=
                                     context['similar_signals_text'] = sim_text
                         except Exception:
                             pass
+                    # 페르소나 과거 실적 (AI 환류)
+                    if not dry_run and conn:
+                        try:
+                            from v4wp_realtime.core.postmortem import get_postmortem_stats
+                            pm = get_postmortem_stats(conn, ticker)
+                            if pm.get('total_completed', 0) >= 5:
+                                context['persona_accuracy'] = pm['persona_accuracy']
+                                context['total_completed'] = pm['total_completed']
+                        except Exception:
+                            pass
+
                     if commentary_fn:
                         try:
                             signal_data['commentary'] = commentary_fn(signal_data, context)

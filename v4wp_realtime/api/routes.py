@@ -148,7 +148,8 @@ def get_signals(ticker: str, days: int = Query(default=90, ge=1, le=365)):
                  action_pct,
                  commentary,
                  detected_date,
-                 interpretation
+                 interpretation,
+                 market_regime
                FROM signal_events
                WHERE ticker = ?
                  AND peak_date >= date('now', ?)
@@ -385,7 +386,7 @@ def get_chart_data(ticker: str, days: int = Query(default=60, ge=1, le=252)):
         # 같은 기간의 시그널
         sig_rows = conn.execute(
             """SELECT peak_date AS date, signal_type, close_price AS entry_price,
-                      s_force, peak_val, signal_tier, action_pct
+                      s_force, peak_val, signal_tier, action_pct, market_regime
                FROM signal_events
                WHERE ticker = ?
                  AND peak_date >= date('now', ?)

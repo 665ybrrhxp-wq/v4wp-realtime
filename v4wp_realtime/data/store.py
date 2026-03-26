@@ -43,6 +43,7 @@ def migrate_db(conn):
         ("market_return_20d", "REAL"),
         ("sector_return_20d", "REAL"),
         ("vix_change_20d", "REAL"),
+        ("market_regime", "TEXT"),
         ("return_5d", "REAL"),
         ("return_20d", "REAL"),
         ("return_90d", "REAL"),
@@ -90,14 +91,14 @@ def insert_signal_event(conn, event):
                 detected_date, notified, commentary, s_force, s_div, s_conc, er, atr_pct,
                 signal_tier, action_pct, interpretation,
                 dd_pct, duration, market_return_20d, sector_return_20d,
-                vix_change_20d)
+                vix_change_20d, market_regime)
                VALUES (:ticker, :signal_type, :peak_date, :peak_val, :start_val, :close_price,
                        :detected_date, :notified, :commentary,
                        :s_force, :s_div, :s_conc, :er, :atr_pct,
                        :signal_tier, :action_pct, :interpretation,
                        :dd_pct, :duration,
                        :market_return_20d, :sector_return_20d,
-                       :vix_change_20d)""",
+                       :vix_change_20d, :market_regime)""",
             event
         )
         conn.commit()

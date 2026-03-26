@@ -3,7 +3,7 @@ import {
   ComposedChart, Area, Line, BarChart, Bar, XAxis, YAxis,
   Tooltip, ReferenceLine, Cell,
 } from "recharts";
-import { fetchChartData, fetchIndicators } from "../api";
+import { fetchChartData, fetchIndicators, fetchPostMortem } from "../api";
 import Gauge from "./Gauge";
 import SignalBadge from "./SignalBadge";
 import AIInterpretation from "./AIInterpretation";
@@ -26,6 +26,7 @@ const tooltipItemStyle = { color: "var(--tg-text)" };
 export default function TickerDetail({ ticker }) {
   const [chart, setChart] = useState(null);
   const [ind, setInd] = useState(null);
+  const [pm, setPm] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,14 +36,16 @@ export default function TickerDetail({ ticker }) {
     Promise.all([
       fetchChartData(ticker, 120),
       fetchIndicators(ticker),
+      fetchPostMortem(ticker).catch(() => null),
     ])
-      .then(([chartRes, indRes]) => {
+      .then(([chartRes, indRes, pmRes]) => {
         if (cancelled) return;
         setChart(chartRes);
         setInd(indRes);
+        setPm(pmRes);
       })
       .catch(() => {
-        if (!cancelled) { setChart(null); setInd(null); }
+        if (!cancelled) { setChart(null); setInd(null); setPm(null); }
       })
       .finally(() => { if (!cancelled) setLoading(false); });
 
@@ -60,11 +63,32 @@ export default function TickerDetail({ ticker }) {
   const andGeo = ind?.and_geo_active ?? false;
   const pipe = ind?.pipeline;
 
-  // 차트용 데이터 매핑
-  const priceData = days.map((d) => ({
-    date: d.date?.slice(5),
-    close: d.close_price,
-  }));
+  const signalDates = new Set(signals.map((s) => s.date?.slice(5)));
+
+  // Post-mortem outcome 매핑 (peak_date → outcome)
+  const outcomeMap = {};
+  if (pm?.signals) {
+    pm.signals.forEach((s) => {
+      if (s.peak_date) outcomeMap[s.peak_date] = s.outcome || "PENDING";
+    });
+  }
+
+  // 차트용 데이터 매핑 (시그널 마커 포함)
+  const priceData = days.map((d) => {
+    const dateKey = d.date?.slice(5);
+    const isSignal = signalDates.has(dateKey);
+    let outcome = null;
+    if (isSignal) {
+      const sig = signals.find((s) => s.date?.slice(5) === dateKey);
+      outcome = sig?.date ? (outcomeMap[sig.date] ?? "PENDING") : "PENDING";
+    }
+    return {
+      date: dateKey,
+      close: d.close_price,
+      signalMark: isSignal ? d.close_price : null,
+      outcome,
+    };
+  });
 
   const forceData = days.map((d) => ({
     date: d.date?.slice(5),
@@ -76,7 +100,6 @@ export default function TickerDetail({ ticker }) {
     val: d.s_div,
   }));
 
-  const signalDates = new Set(signals.map((s) => s.date?.slice(5)));
   // 고정 폭: 데이터 포인트 × PPD + Y축 여백
   const chartW = days.length * PPD + 50;
   const xInterval = Math.max(Math.floor(days.length / 8) - 1, 0);
@@ -125,7 +148,12 @@ export default function TickerDetail({ ticker }) {
         </div>
       </Card>
 
-      {/* ── 1b. Signal Pipeline ── */}
+      {/* ── 1b. Market Regime Badge ── */}
+      {signals.length > 0 && signals[0].market_regime && signals[0].market_regime !== "UNKNOWN" && (
+        <RegimeBadge regime={signals[0].market_regime} />
+      )}
+
+      {/* ── 1c. Signal Pipeline ── */}
       {pipe && andGeo && (
         <div style={{ display: "flex", gap: 6 }}>
           <PipeChip
@@ -142,6 +170,7 @@ export default function TickerDetail({ ticker }) {
             ok={pipe.dd_ok}
             label="DD Gate"
             detail={`-${pipe.dd_pct}% / -${pipe.dd_threshold}%`}
+            near={!pipe.dd_ok && pipe.dd_pct >= pipe.dd_threshold * 0.8}
           />
         </div>
       )}
@@ -184,21 +213,44 @@ export default function TickerDetail({ ticker }) {
             <Line type="monotone" dataKey="close" stroke="#818cf8" strokeWidth={1.5} dot={false} />
             {priceData
               .filter((d) => signalDates.has(d.date))
-              .map((d, i) => (
-                <ReferenceLine key={i} x={d.date} stroke="#34d399" strokeDasharray="3 3" strokeWidth={1} />
-              ))}
+              .map((d, i) => {
+                const c = d.outcome === "WIN" ? "#34d399" : d.outcome === "LOSS" ? "#f87171" : "#6b7280";
+                return <ReferenceLine key={i} x={d.date} stroke={c} strokeDasharray="3 3" strokeWidth={1} />;
+              })}
+            <Line
+              type="monotone"
+              dataKey="signalMark"
+              stroke="none"
+              strokeWidth={0}
+              dot={(props) => {
+                if (props.payload?.signalMark == null) return null;
+                return <SignalTriangle cx={props.cx} cy={props.cy} outcome={props.payload.outcome} />;
+              }}
+              activeDot={false}
+              isAnimationActive={false}
+              legendType="none"
+            />
           </ComposedChart>
         </ScrollBox>
 
         {signals.length > 0 && (
-          <div style={{ display: "flex", gap: 8, padding: "6px 4px 0", flexWrap: "wrap" }}>
-            {signals.map((s, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "var(--tg-hint)" }}>
-                <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#34d399" }} />
-                {s.date?.slice(5)}
-                <SignalBadge direction={s.direction} tier={s.signal_tier} />
-              </div>
-            ))}
+          <div style={{ display: "flex", gap: 8, padding: "6px 4px 0", flexWrap: "wrap", alignItems: "center" }}>
+            {signals.map((s, i) => {
+              const oc = outcomeMap[s.date];
+              const dotColor = oc === "WIN" ? "#34d399" : oc === "LOSS" ? "#f87171" : "#6b7280";
+              return (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "var(--tg-hint)" }}>
+                  <svg width={8} height={8} viewBox="0 0 10 10">
+                    {oc === "LOSS"
+                      ? <polygon points="5,9 0,1 10,1" fill={dotColor} />
+                      : <polygon points="5,1 0,9 10,9" fill={dotColor} />}
+                  </svg>
+                  {s.date?.slice(5)}
+                  <SignalBadge direction={s.direction} tier={s.signal_tier} />
+                  {oc && <OutcomeBadge outcome={oc} />}
+                </div>
+              );
+            })}
           </div>
         )}
       </Card>
@@ -242,7 +294,7 @@ export default function TickerDetail({ ticker }) {
         <Card label={`SIGNALS · ${signals.length}`}>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {signals.map((s, i) => (
-              <SignalRow key={i} signal={s} />
+              <SignalRow key={i} signal={s} outcome={outcomeMap[s.date]} />
             ))}
           </div>
         </Card>
@@ -273,7 +325,7 @@ function ScrollBox({ children }) {
 }
 
 /* ── Signal Row (compact) ── */
-function SignalRow({ signal }) {
+function SignalRow({ signal, outcome }) {
   const s = signal;
   const confirmed = s.signal_tier === "CONFIRMED";
   return (
@@ -293,6 +345,7 @@ function SignalRow({ signal }) {
           {s.date}
         </span>
         <SignalBadge direction={s.direction} tier={s.signal_tier} />
+        {outcome && <OutcomeBadge outcome={outcome} />}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <Metric label="force" value={s.s_force?.toFixed(2)} color={s.s_force > 0 ? "#34d399" : "#f87171"} />
@@ -334,25 +387,108 @@ function Card({ label, children }) {
   );
 }
 
-function PipeChip({ ok, label, detail }) {
+function PipeChip({ ok, label, detail, near }) {
+  const borderColor = ok ? "#166534" : near ? "#92400e" : "rgba(255,255,255,0.06)";
+  const statusColor = ok ? "#34d399" : near ? "#fbbf24" : "#f87171";
+  const statusText = ok ? "PASS" : near ? "NEAR" : "FAIL";
   return (
     <div
       style={{
         flex: 1,
         padding: "6px 8px",
         borderRadius: 8,
-        background: "var(--tg-section-bg)",
-        border: `1px solid ${ok ? "#166534" : "rgba(255,255,255,0.06)"}`,
+        background: near ? "#422006" : "var(--tg-section-bg)",
+        border: `1px solid ${borderColor}`,
         textAlign: "center",
       }}
     >
-      <div style={{ fontSize: 9, fontWeight: 700, color: ok ? "#34d399" : "#f87171", marginBottom: 2 }}>
-        {ok ? "PASS" : "FAIL"} {label}
+      <div style={{ fontSize: 9, fontWeight: 700, color: statusColor, marginBottom: 2 }}>
+        {statusText} {label}
       </div>
       <div style={{ fontSize: 9, fontFamily: mono, color: "var(--tg-hint)" }}>
         {detail}
       </div>
     </div>
+  );
+}
+
+const REGIME_CONFIG = {
+  BEAR_STRONG: { label: "HIGH", desc: "공포 극대 → 역발상 매수", color: "#34d399", bg: "#0d3320", border: "#166534" },
+  BEAR_WEAK:   { label: "MID",  desc: "약세장 매수 기회",       color: "#60a5fa", bg: "#172554", border: "#1e40af" },
+  BULL_WEAK:   { label: "LOW",  desc: "상승장 평균 기회",       color: "#fbbf24", bg: "#422006", border: "#92400e" },
+  BULL_STRONG: { label: "CAUTION", desc: "과열 구간 주의",      color: "#f87171", bg: "#450a0a", border: "#991b1b" },
+};
+
+function RegimeBadge({ regime }) {
+  const cfg = REGIME_CONFIG[regime];
+  if (!cfg) return null;
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "6px 10px",
+        borderRadius: 8,
+        background: cfg.bg,
+        border: `1px solid ${cfg.border}`,
+      }}
+    >
+      <div style={{ fontSize: 9, fontWeight: 700, color: cfg.color, textTransform: "uppercase", letterSpacing: 0.5 }}>
+        {cfg.label}
+      </div>
+      <div style={{ fontSize: 10, color: "var(--tg-hint)" }}>{cfg.desc}</div>
+      <div
+        style={{
+          marginLeft: "auto",
+          fontSize: 8,
+          fontWeight: 600,
+          color: "var(--tg-hint)",
+          textTransform: "uppercase",
+          letterSpacing: 0.3,
+        }}
+      >
+        {regime.replace("_", " ")}
+      </div>
+    </div>
+  );
+}
+
+/* ── Signal Triangle Marker (chart dot) ── */
+function SignalTriangle({ cx, cy, outcome }) {
+  if (cx == null || cy == null) return null;
+  const s = 5;
+  const color = outcome === "WIN" ? "#34d399" : outcome === "LOSS" ? "#f87171" : "#6b7280";
+  // WIN/PENDING → upward triangle, LOSS → downward triangle
+  const points = outcome === "LOSS"
+    ? `${cx},${cy + s + 2} ${cx - s},${cy - s + 2} ${cx + s},${cy - s + 2}`
+    : `${cx},${cy - s - 2} ${cx - s},${cy + s - 2} ${cx + s},${cy + s - 2}`;
+  return <polygon points={points} fill={color} stroke={color} strokeWidth={0.5} />;
+}
+
+/* ── Outcome Badge (WIN/LOSS/PENDING) ── */
+function OutcomeBadge({ outcome }) {
+  const cfg = {
+    WIN: { color: "#34d399", bg: "#0d3320", border: "#166534", label: "WIN" },
+    LOSS: { color: "#f87171", bg: "#450a0a", border: "#991b1b", label: "LOSS" },
+  };
+  const c = cfg[outcome];
+  if (!c) return null;
+  return (
+    <span
+      style={{
+        fontSize: 8,
+        fontWeight: 700,
+        padding: "1px 5px",
+        borderRadius: 3,
+        background: c.bg,
+        color: c.color,
+        border: `1px solid ${c.border}`,
+        letterSpacing: 0.3,
+      }}
+    >
+      {c.label}
+    </span>
   );
 }
 

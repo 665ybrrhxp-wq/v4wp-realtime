@@ -27,6 +27,7 @@ from v4wp_realtime.config.settings import (
 from v4wp_realtime.alerts.message_formatter import (
     format_signal_message, format_signal_compact,
     format_signals_summary, format_scan_summary,
+    format_watch_alerts,
 )
 
 
@@ -592,6 +593,27 @@ def run_callback_handler(poll_interval=2, timeout=None):
 # ════════════════════════════════════════════
 # 기존 인터페이스
 # ════════════════════════════════════════════
+
+def send_watch_alert(watch_alerts):
+    """DD Gate 근접 종목 워치 알림 전송."""
+    if not watch_alerts:
+        return None
+    msg = format_watch_alerts(watch_alerts)
+    # 각 종목별 Dashboard 딥링크 버튼
+    buttons = []
+    row = []
+    for w in watch_alerts[:10]:
+        dash_btn = _dashboard_button(w['ticker'])
+        if dash_btn:
+            row.append(dash_btn[0])
+            if len(row) == 2:
+                buttons.append(row)
+                row = []
+    if row:
+        buttons.append(row)
+    kb = _keyboard(buttons) if buttons else None
+    return _send_message(msg, parse_mode='HTML', reply_markup=kb)
+
 
 def send_scan_summary(results):
     """스캔 결과 요약 전송 (HTML) + Dashboard 버튼."""

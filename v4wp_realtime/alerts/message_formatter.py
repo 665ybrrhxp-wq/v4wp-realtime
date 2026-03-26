@@ -119,6 +119,28 @@ def _dd_confidence(dd_pct):
         return '\u2705 보통'
 
 
+def format_watch_alerts(watch_alerts):
+    """DD Gate 근접 종목 워치 알림 (복수)."""
+    n = len(watch_alerts)
+    lines = [
+        f'\u23f3 <b>DD Gate Watch {n}건</b>',
+        '',
+    ]
+    for w in watch_alerts:
+        dd_pct = w['dd_pct'] * 100
+        dd_th = w['dd_threshold'] * 100
+        gap = dd_th - dd_pct
+        lines.append(
+            f'\u23f3 <b>{w["ticker"]}</b>'
+            f'  DD <code>{dd_pct:.1f}%</code>'
+            f'  (threshold {dd_th:.1f}%,'
+            f' <b>{gap:.1f}%p</b> \ub0a8\uc74c)'
+        )
+    lines.append('')
+    lines.append('\U0001f50d DD Gate \ud1b5\uacfc \uc784\ubc15 \u2014 \uc8fc\uc2dc \ud544\uc694')
+    return '\n'.join(lines)
+
+
 def format_scan_summary(results):
     """스캔 요약 → Telegram HTML 카드."""
     n_new = len(results['new_signals'])
@@ -146,6 +168,13 @@ def format_scan_summary(results):
         lines.append('\u2705 신규 신호 없음')
 
     if n_blocked > 0:
-        lines.append(f'\U0001f6ab DD게이트 차단: {n_blocked}건')
+        lines.append(f'\U0001f6ab DD\uac8c\uc774\ud2b8 \ucc28\ub2e8: {n_blocked}\uac74')
+
+    n_watch = len(results.get('watch_alerts', []))
+    if n_watch > 0:
+        watch_tickers = ', '.join(
+            f'<b>{w["ticker"]}</b>' for w in results['watch_alerts']
+        )
+        lines.append(f'\u23f3 DD\uadfc\uc811: {n_watch}\uac74 ({watch_tickers})')
 
     return '\n'.join(lines)

@@ -4,8 +4,9 @@ daily_scan.py 실행 후 호출하여 webapp/dist/data/ 에 JSON 파일 생성.
 프론트엔드가 API 서버 대신 이 JSON 파일에서 데이터를 읽음.
 
 생성 파일:
-  dist/data/watchlist.json          - GET /api/watchlist 동일
-  dist/data/chart/{TICKER}.json     - GET /api/chart-data/{ticker} 동일
+  dist/data/watchlist.json           - GET /api/watchlist 동일
+  dist/data/chart/{TICKER}.json      - GET /api/chart-data/{ticker} 동일
+  dist/data/signals/{TICKER}.json    - GET /api/signals/{ticker} 동일
   dist/data/indicators/{TICKER}.json - GET /api/indicators/{ticker} 동일
 """
 import sys
@@ -122,7 +123,7 @@ def export_chart_data(conn, ticker, days=120):
 
     sig_rows = conn.execute(
         """SELECT peak_date AS date, signal_type, close_price AS entry_price,
-                  s_force, peak_val, signal_tier, action_pct
+                  s_force, peak_val, signal_tier, action_pct, market_regime
            FROM signal_events
            WHERE ticker = ?
              AND peak_date >= date('now', ?)
@@ -241,6 +242,51 @@ def export_indicators(conn, ticker, params=None):
         json.dump(result, f, ensure_ascii=False)
 
 
+def export_signals(conn, ticker, days=90):
+    """signals/{TICKER}.json 생성 — GET /api/signals/{ticker} 동일."""
+    rows = conn.execute(
+        """SELECT
+             peak_date   AS date,
+             signal_type,
+             close_price,
+             s_force,
+             s_div,
+             s_conc,
+             er,
+             atr_pct,
+             peak_val,
+             signal_tier,
+             action_pct,
+             commentary,
+             detected_date,
+             interpretation,
+             market_regime
+           FROM signal_events
+           WHERE ticker = ?
+             AND peak_date >= date('now', ?)
+           ORDER BY peak_date DESC""",
+        (ticker, f'-{days} days'),
+    ).fetchall()
+
+    result = []
+    for r in [dict(row) for row in rows]:
+        for k in r:
+            r[k] = _safe(r[k])
+        r['direction'] = 'LONG' if r['signal_type'] == 'bottom' else 'SHORT'
+        r['squeeze'] = bool(r.get('s_conc') and abs(r['s_conc']) > 0)
+        if r.get('interpretation'):
+            try:
+                r['interpretation'] = json.loads(r['interpretation'])
+            except (json.JSONDecodeError, TypeError):
+                r['interpretation'] = None
+        result.append(r)
+
+    out = DIST_DATA / 'signals' / f'{ticker}.json'
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with open(out, 'w', encoding='utf-8') as f:
+        json.dump(result, f, ensure_ascii=False)
+
+
 def export_interpretation(conn, ticker):
     """interpretation/{TICKER}.json — latest AI multi-persona interpretation."""
     row = conn.execute(
@@ -323,6 +369,7 @@ def main():
     wl_params = wl.get('params', {})
     for t in tickers:
         export_chart_data(conn, t)
+        export_signals(conn, t)
         export_indicators(conn, t, wl_params)
         export_interpretation(conn, t)
         export_postmortem(conn, t)

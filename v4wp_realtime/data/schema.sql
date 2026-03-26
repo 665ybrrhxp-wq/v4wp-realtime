@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS signal_events (
     market_return_20d REAL,
     sector_return_20d REAL,
     vix_change_20d REAL,
+    market_regime TEXT,
     return_5d REAL,
     return_20d REAL,
     return_90d REAL,
