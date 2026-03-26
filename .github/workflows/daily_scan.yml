@@ -2,10 +2,9 @@ name: V4_wP Daily Scan
 
 on:
   schedule:
-    # EDT(3~11월): 장 마감 16:30 = UTC 20:30 = 한국 오전 5:30
-    - cron: '30 20 * * 1-5'
-    # EST(11~3월): 장 마감 16:30 = UTC 21:30 = 한국 오전 6:30
-    - cron: '30 21 * * 1-5'
+    # 미국 장 마감 후 (EDT 17:00 / EST 17:00 = UTC 21:00)
+    # DST 여부 관계없이 1회만 실행 — 장 마감(16:00) 후 충분한 여유
+    - cron: '0 21 * * 1-5'
   workflow_dispatch:  # 수동 실행 버튼
 
 # GitHub Pages 배포 권한
