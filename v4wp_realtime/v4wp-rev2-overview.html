@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="ko" class="theme-dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>V4_wP Rev2 - 개발과정 및 매수 로직 정리</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script>Chart.defaults.animation = false;</script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { interpolate-size: allow-keywords; }
+
+    html.theme-dark {
+      --bg: #070b14; --surface: #0f1525; --surface-hover: #161d30;
+      --border: rgba(100,140,255,0.08);
+      --text: #e8ecf4; --text-secondary: #7b8ba8;
+      --accent: #4f8cff; --accent-secondary: #7c5cff;
+      --positive: #22c55e; --negative: #ef4444; --warning: #f59e0b;
+      --glass-bg: rgba(15,21,37,0.7);
+      --pipeline-bg: rgba(20,30,55,0.6);
+      --hero-gradient: linear-gradient(135deg, #0a1628 0%, #0f1f3d 40%, #0d1a35 100%);
+    }
+    html.theme-light {
+      --bg: #f4f6fb; --surface: #ffffff; --surface-hover: #eef1f8;
+      --border: rgba(0,0,30,0.08);
+      --text: #0f172a; --text-secondary: #536380;
+      --accent: #2563eb; --accent-secondary: #7c3aed;
+      --positive: #16a34a; --negative: #dc2626; --warning: #d97706;
+      --glass-bg: rgba(255,255,255,0.7);
+      --pipeline-bg: rgba(240,243,250,0.8);
+      --hero-gradient: linear-gradient(135deg, #e8edf8 0%, #dce4f4 40%, #e2e8f5 100%);
+    }
+
+    body {
+      font-family: 'Noto Sans KR', 'Inter', -apple-system, sans-serif;
+      background: var(--bg); color: var(--text);
+      line-height: 1.6; -webkit-font-smoothing: antialiased;
+      transition: background 0.3s, color 0.3s;
+    }
+    h1,h2,h3,h4 { color: var(--text); letter-spacing: -0.03em; line-height: 1.2; text-wrap: balance; }
+    h1 { font-size: clamp(2.5rem, 5vw, 3.5rem); font-weight: 800; }
+    h2 { font-size: clamp(2rem, 3.5vw, 2.5rem); font-weight: 700; }
+    h3 { font-size: clamp(1.3rem, 2.5vw, 1.5rem); font-weight: 600; }
+    p, li, td, th, span, label { font-weight: 400; }
+    .text-secondary { color: var(--text-secondary); }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 28px;
+      transition: box-shadow 0.2s ease;
+    }
+    .card:hover { box-shadow: 0 0 0 1px var(--border), 0 8px 24px rgba(0,0,0,0.12); }
+
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideInLeft { from { opacity: 0; transform: translateX(-40px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes slideInRight { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+    .animate { animation: fadeInUp 0.6s ease-out both; }
+    .animate.delay-1 { animation-delay: 0.1s; }
+    .animate.delay-2 { animation-delay: 0.2s; }
+    .animate.delay-3 { animation-delay: 0.3s; }
+    .animate.delay-4 { animation-delay: 0.4s; }
+    .animate.delay-5 { animation-delay: 0.5s; }
+    .animate.delay-6 { animation-delay: 0.6s; }
+
+    .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+      .reveal { opacity: 1; transform: none; }
+    }
+
+    @media print {
+      body { background: white !important; color: black !important; }
+      .viz-menu, .reveal { display: revert; opacity: 1 !important; transform: none !important; }
+      .card { break-inside: avoid; border: 1px solid #ddd; box-shadow: none; }
+      * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      section { page-break-inside: avoid; }
+    }
+    @page { margin: 0.8in; }
+
+    .viz-menu { position: fixed; top: 16px; right: 16px; z-index: 9999; }
+    .viz-menu-toggle {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); cursor: pointer; display: flex;
+      align-items: center; justify-content: center;
+      backdrop-filter: blur(12px); transition: all 0.2s;
+    }
+    .viz-menu-toggle:hover { background: var(--surface-hover); }
+    .viz-menu-dropdown {
+      position: absolute; top: 52px; right: 0; min-width: 200px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 8px;
+      opacity: 0; visibility: hidden; transform: translateY(-8px);
+      transition: all 0.2s; backdrop-filter: blur(16px);
+    }
+    .viz-menu-dropdown.open { opacity: 1; visibility: visible; transform: translateY(0); }
+    .viz-menu-dropdown button {
+      width: 100%; padding: 10px 14px; border: none; border-radius: 8px;
+      background: transparent; color: var(--text); font-size: 14px;
+      font-family: inherit; cursor: pointer; text-align: left;
+      display: flex; align-items: center; gap: 10px; transition: background 0.15s;
+    }
+    .viz-menu-dropdown button:hover { background: var(--surface-hover); }
+
+    details { overflow: hidden; }
+    details summary { cursor: pointer; list-style: none; }
+    details summary::-webkit-details-marker { display: none; }
+    ::details-content {
+      transition: block-size 0.3s ease, opacity 0.3s ease;
+      block-size: 0; opacity: 0; overflow: hidden;
+    }
+    details[open]::details-content { block-size: auto; opacity: 1; }
+
+    /* ===== HERO ===== */
+    .hero {
+      background: var(--hero-gradient);
+      padding: 100px 24px 80px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 600px 400px at 50% 30%, rgba(79,140,255,0.08), transparent);
+      pointer-events: none;
+    }
+    .hero .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(79,140,255,0.12); border: 1px solid rgba(79,140,255,0.2);
+      border-radius: 40px; padding: 8px 20px; font-size: 0.875rem;
+      color: var(--accent); font-weight: 500; margin-bottom: 24px;
+    }
+    .hero h1 { margin-bottom: 16px; }
+    .hero p { font-size: 1.125rem; color: var(--text-secondary); max-width: 640px; margin: 0 auto; }
+
+    /* ===== KPI GRID ===== */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px; margin-top: 48px;
+    }
+    .kpi-card {
+      background: var(--glass-bg); backdrop-filter: blur(8px);
+      border: 1px solid var(--border); border-radius: 12px;
+      padding: 24px; text-align: center;
+    }
+    .kpi-value { font-size: 2.25rem; font-weight: 800; line-height: 1.1; margin-bottom: 4px; }
+    .kpi-label { font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; }
+
+    /* ===== SECTION HEADERS ===== */
+    .section-header {
+      text-align: center;
+      padding: 80px 24px 48px;
+    }
+    .section-num {
+      display: inline-block;
+      width: 36px; height: 36px; line-height: 36px;
+      border-radius: 50%; background: var(--accent);
+      color: white; font-weight: 700; font-size: 0.875rem;
+      margin-bottom: 12px;
+    }
+
+    /* ===== TIMELINE ===== */
+    .timeline { position: relative; padding: 0 24px; }
+    .timeline::before {
+      content: ''; position: absolute; left: 50%; top: 0; bottom: 0;
+      width: 2px; background: var(--border); transform: translateX(-50%);
+    }
+    .timeline-item {
+      display: flex; align-items: flex-start; gap: 32px;
+      margin-bottom: 48px; position: relative;
+    }
+    .timeline-item:nth-child(odd) { flex-direction: row; }
+    .timeline-item:nth-child(even) { flex-direction: row-reverse; }
+    .timeline-content {
+      flex: 1; max-width: calc(50% - 40px);
+    }
+    .timeline-dot {
+      position: absolute; left: 50%; top: 12px;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: var(--accent); border: 3px solid var(--bg);
+      transform: translateX(-50%); z-index: 1;
+    }
+    .timeline-date {
+      font-size: 0.8rem; color: var(--accent); font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px;
+    }
+    .timeline-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 24px;
+    }
+    .timeline-card h3 { margin-bottom: 12px; }
+    .timeline-card ul { padding-left: 18px; }
+    .timeline-card li { margin-bottom: 6px; font-size: 0.9rem; color: var(--text-secondary); }
+    .tag {
+      display: inline-block; padding: 3px 10px; border-radius: 6px;
+      font-size: 0.75rem; font-weight: 600; margin: 2px;
+    }
+    .tag-green { background: rgba(34,197,94,0.12); color: var(--positive); }
+    .tag-red { background: rgba(239,68,68,0.12); color: var(--negative); }
+    .tag-blue { background: rgba(79,140,255,0.12); color: var(--accent); }
+    .tag-yellow { background: rgba(245,158,11,0.12); color: var(--warning); }
+
+    @media (max-width: 768px) {
+      .timeline::before { left: 20px; }
+      .timeline-item, .timeline-item:nth-child(even) { flex-direction: column; padding-left: 48px; }
+      .timeline-content { max-width: 100%; }
+      .timeline-dot { left: 20px; }
+    }
+
+    /* ===== PIPELINE ===== */
+    .pipeline { display: flex; flex-direction: column; gap: 0; align-items: center; }
+    .pipe-step {
+      width: 100%; max-width: 720px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 24px 28px;
+      position: relative;
+    }
+    .pipe-step .step-num {
+      position: absolute; left: -16px; top: 50%; transform: translateY(-50%);
+      width: 32px; height: 32px; line-height: 32px; text-align: center;
+      border-radius: 50%; font-weight: 700; font-size: 0.8rem; color: white;
+    }
+    .pipe-arrow {
+      width: 2px; height: 32px; background: var(--border); position: relative;
+    }
+    .pipe-arrow::after {
+      content: ''; position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%);
+      border-left: 6px solid transparent; border-right: 6px solid transparent;
+      border-top: 8px solid var(--accent);
+    }
+    .pipe-step h3 { font-size: 1.1rem; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+    .pipe-step p { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0; }
+    .pipe-step .formula {
+      background: var(--pipeline-bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px 16px; margin-top: 10px;
+      font-family: 'Inter', monospace; font-size: 0.85rem; color: var(--accent);
+      word-break: break-all;
+    }
+
+    .step-green .step-num { background: var(--positive); }
+    .step-blue .step-num { background: var(--accent); }
+    .step-red .step-num { background: var(--negative); }
+    .step-yellow .step-num { background: var(--warning); }
+    .step-purple .step-num { background: var(--accent-secondary); }
+
+    /* ===== PARAMS TABLE ===== */
+    .params-table {
+      width: 100%; border-collapse: separate; border-spacing: 0;
+      border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+    }
+    .params-table th, .params-table td {
+      padding: 14px 20px; text-align: left; font-size: 0.9rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .params-table th {
+      background: var(--surface); font-weight: 600; font-size: 0.8rem;
+      text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary);
+    }
+    .params-table td { background: var(--bg); }
+    .params-table tr:last-child td { border-bottom: none; }
+    .params-table .changed { color: var(--positive); font-weight: 600; }
+    .params-table .removed { color: var(--negative); font-weight: 600; }
+    .params-table .arrow { color: var(--accent); font-weight: 500; }
+
+    /* ===== EXPERIMENT ACCORDION ===== */
+    .exp-group {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; margin-bottom: 12px; overflow: hidden;
+    }
+    .exp-group summary {
+      padding: 20px 24px; font-weight: 600; font-size: 1rem;
+      display: flex; align-items: center; gap: 12px;
+      transition: background 0.15s;
+    }
+    .exp-group summary:hover { background: var(--surface-hover); }
+    .exp-group summary .exp-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.85rem; font-weight: 700; color: white; flex-shrink: 0;
+    }
+    .exp-group summary .exp-count {
+      margin-left: auto; font-size: 0.8rem; color: var(--text-secondary);
+      font-weight: 400;
+    }
+    .exp-group summary::after {
+      content: '';
+      width: 0; height: 0;
+      border-left: 5px solid transparent; border-right: 5px solid transparent;
+      border-top: 6px solid var(--text-secondary);
+      transition: transform 0.2s; margin-left: 8px;
+    }
+    .exp-group[open] summary::after { transform: rotate(180deg); }
+    .exp-body { padding: 0 24px 20px; }
+    .exp-body p { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.7; }
+    .exp-body .result { color: var(--positive); font-weight: 600; }
+
+    /* ===== PHILOSOPHY ===== */
+    .philosophy-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;
+    }
+    .phil-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 28px; position: relative; overflow: hidden;
+    }
+    .phil-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+    .phil-card.phil-blue::before { background: var(--accent); }
+    .phil-card.phil-green::before { background: var(--positive); }
+    .phil-card.phil-purple::before { background: var(--accent-secondary); }
+    .phil-card h3 { margin-bottom: 12px; font-size: 1.1rem; }
+    .phil-card p { font-size: 0.9rem; color: var(--text-secondary); }
+
+    /* ===== CHART SECTION ===== */
+    .chart-wrapper {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 20px;
+    }
+    .chart-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 24px;
+    }
+    .chart-card h3 { margin-bottom: 16px; font-size: 1rem; }
+    .chart-container { position: relative; height: 300px; }
+
+    /* ===== SUB-INDICATOR DETAIL ===== */
+    .indicator-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;
+    }
+    .indicator-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 28px; position: relative;
+    }
+    .indicator-card h3 { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .indicator-card .ind-badge {
+      display: inline-block; padding: 4px 10px; border-radius: 6px;
+      font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    }
+    .indicator-card p { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 8px; }
+    .indicator-card .formula {
+      background: var(--pipeline-bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px 16px; margin-top: 12px;
+      font-family: 'Inter', monospace; font-size: 0.82rem; color: var(--accent);
+    }
+
+    /* ===== FOOTER ===== */
+    .footer {
+      text-align: center; padding: 48px 24px;
+      border-top: 1px solid var(--border); margin-top: 80px;
+    }
+    .footer p { font-size: 0.85rem; color: var(--text-secondary); }
+
+    /* ===== SEARCH ===== */
+    .search-bar {
+      max-width: 400px; margin: 0 auto 32px;
+      position: relative;
+    }
+    .search-bar input {
+      width: 100%; padding: 12px 16px 12px 44px;
+      border-radius: 10px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text);
+      font-family: inherit; font-size: 0.9rem;
+      outline: none; transition: border-color 0.2s;
+    }
+    .search-bar input:focus { border-color: var(--accent); }
+    .search-bar svg {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      color: var(--text-secondary);
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 768px) {
+      .container { padding: 0 16px; }
+      .hero { padding: 80px 16px 60px; }
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .chart-wrapper { grid-template-columns: 1fr; }
+      .indicator-grid { grid-template-columns: 1fr; }
+      .philosophy-grid { grid-template-columns: 1fr; }
+      .pipe-step { margin-left: 20px; }
+    }
+    @media (max-width: 375px) {
+      body { overflow-x: hidden; }
+      .kpi-grid { grid-template-columns: 1fr; }
+      .kpi-value { font-size: 1.8rem; }
+    }
+  </style>
+</head>
+<body>
+  <a href="#main-content" class="skip-link" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10000;padding:8px 16px;background:var(--accent);color:white;text-decoration:none;border-radius:4px;" onfocus="this.style.cssText='position:fixed;left:16px;top:16px;z-index:10000;padding:8px 16px;background:var(--accent);color:white;text-decoration:none;border-radius:4px;'" onblur="this.style.cssText='position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;'">Skip to content</a>
+
+  <!-- MENU -->
+  <div class="viz-menu">
+    <button class="viz-menu-toggle" onclick="toggleMenu()" aria-label="Menu">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <line x1="3" y1="5" x2="17" y2="5"/><line x1="3" y1="10" x2="17" y2="10"/><line x1="3" y1="15" x2="17" y2="15"/>
+      </svg>
+    </button>
+    <div class="viz-menu-dropdown" id="vizMenuDropdown">
+      <button onclick="cycleTheme()"><span id="themeIcon"></span><span id="themeLabel">Dark</span></button>
+      <button onclick="downloadImage()"><span>PNG 다운로드</span></button>
+      <button onclick="window.print()"><span>인쇄 / PDF</span></button>
+    </div>
+  </div>
+
+  <main id="main-content" role="main">
+
+    <!-- ===== HERO ===== -->
+    <section class="hero">
+      <div class="container">
+        <div class="badge animate">Volume-Price Fusion System</div>
+        <h1 class="animate delay-1">V4_wP Rev2</h1>
+        <p class="animate delay-2">거래량-가격 융합 기반 매수 타이밍 신호 시스템의 개발과정과 진입 판단 로직을 정리합니다.<br>Telegram 실시간 알림 + Claude AI 코멘터리 + GitHub Actions 자동 일일 스캔</p>
+
+        <div class="kpi-grid animate delay-3">
+          <div class="kpi-card">
+            <div class="kpi-value" style="color:var(--accent);" data-count="249">0</div>
+            <div class="kpi-label">총 신호 수</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-value" style="color:var(--positive);" data-count="83" data-suffix=".9%">0</div>
+            <div class="kpi-label">90일 적중률</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-value" style="color:var(--text);" data-count="12" data-suffix=".49%">0</div>
+            <div class="kpi-label">CAGR</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-value" style="color:var(--positive);" data-count="10" data-prefix="+" data-suffix="%p">0</div>
+            <div class="kpi-label">무작위 대비 Edge</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 1. 알고리즘 진화 ===== -->
+    <section class="section-header" data-reveal>
+      <div class="section-num">1</div>
+      <h2>알고리즘 진화 과정</h2>
+      <p class="text-secondary" style="margin-top:8px;">3단계 반복 개선을 통한 프로덕션 시스템 확정</p>
+    </section>
+
+    <section class="container" data-reveal style="margin-bottom: 80px;">
+      <div class="timeline">
+        <!-- Rev1 초기 -->
+        <div class="timeline-item">
+          <div class="timeline-content">
+            <div class="timeline-date">2026-03-14 / Rev1 초기</div>
+            <div class="timeline-card">
+              <h3>가중합(Weighted Sum) 방식</h3>
+              <div class="formula" style="margin-bottom:12px;">score = 0.45 x S_Force + 0.30 x S_Div + 0.25 x S_Conc</div>
+              <ul>
+                <li>3개 서브지표 모두 사용 (Force + Div + Conc)</li>
+                <li>매수/매도 신호 모두 발생</li>
+                <li>BUY_DD_GATE 미적용</li>
+                <li><span class="tag tag-yellow">Activity Multiplier 0.5~2.2x</span></li>
+              </ul>
+            </div>
+          </div>
+          <div class="timeline-dot"></div>
+          <div class="timeline-content"></div>
+        </div>
+        <!-- Rev1 중간 -->
+        <div class="timeline-item">
+          <div class="timeline-content"></div>
+          <div class="timeline-dot" style="background: var(--warning);"></div>
+          <div class="timeline-content">
+            <div class="timeline-date">2026-03-15 / Rev1 개선</div>
+            <div class="timeline-card">
+              <h3>안전장치 추가</h3>
+              <ul>
+                <li><span class="tag tag-green">BUY_DD_GATE</span> 20일 고점 대비 5% 하락 확인</li>
+                <li>GitHub Actions cron (EDT/EST 이중 트리거)</li>
+                <li>Telegram HTML 포맷 재설계</li>
+                <li>신고점 과열 구간 매수 차단</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <!-- Rev2 최종 -->
+        <div class="timeline-item">
+          <div class="timeline-content">
+            <div class="timeline-date">2026-03-17 / Rev2 최종 (프로덕션)</div>
+            <div class="timeline-card" style="border-color: rgba(79,140,255,0.2);">
+              <h3>AND-GEO 방식 전환</h3>
+              <div class="formula" style="margin-bottom:12px;">score = sqrt(S_Force x S_Div) &nbsp;&nbsp;[둘 다 양수일 때만]</div>
+              <ul>
+                <li><span class="tag tag-red">S_Conc 제거</span> 바닥에서 음수 -> 스코어 깎음</li>
+                <li><span class="tag tag-red">매도 신호 제거</span> 90일 정확도 28.9% (동전 이하)</li>
+                <li><span class="tag tag-green">GEO-OP 완화</span> th 0.15->0.05, confirm 3d->1d</li>
+                <li><span class="tag tag-blue">DD 완화</span> 5% -> 3% (AND-GEO 보수성 덕분)</li>
+                <li>워치리스트: 15 -> 18종목 (ASTS, CRCL, SOFI 추가)</li>
+              </ul>
+            </div>
+          </div>
+          <div class="timeline-dot" style="background: var(--positive); width: 20px; height: 20px;"></div>
+          <div class="timeline-content"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 2. 서브지표 상세 ===== -->
+    <section class="section-header" data-reveal>
+      <div class="section-num">2</div>
+      <h2>서브지표 계산</h2>
+      <p class="text-secondary" style="margin-top:8px;">두 지표가 동시에 양수일 때만 매수 신호 발생 (AND 조건)</p>
+    </section>
+
+    <section class="container" data-reveal style="margin-bottom: 80px;">
+      <div class="indicator-grid">
+        <!-- S_Force -->
+        <div class="indicator-card">
+          <h3>
+            <span class="ind-badge" style="background: rgba(79,140,255,0.15); color: var(--accent);">지표 1</span>
+            S_Force (거래량 힘)
+          </h3>
+          <p>거래량이 터지면서 가격이 <strong>가속</strong>하는 구간을 포착합니다. 가격의 1차 미분(속도) 대신 <strong>2차 미분(가속도)</strong>을 사용해 추세 전환점에 민감하게 반응합니다.</p>
+          <div class="formula">
+            PV_Force = V_norm x P_acceleration<br>
+            MACD(12, 26, 9) Histogram 적용<br>
+            S_Force = clip(Hist / 2sigma, -1, +1)
+          </div>
+          <p style="margin-top:12px; font-size:0.82rem;">
+            <span style="color:var(--positive);">+1:</span> 강한 매수세 &nbsp;|&nbsp;
+            <span style="color:var(--negative);">-1:</span> 강한 매도세
+          </p>
+        </div>
+        <!-- S_Div -->
+        <div class="indicator-card">
+          <h3>
+            <span class="ind-badge" style="background: rgba(124,92,255,0.15); color: var(--accent-secondary);">지표 2</span>
+            S_Div (가격-거래량 괴리)
+          </h3>
+          <p><strong>거래량 증가 + 가격 하락</strong>일 때 양수 -> 큰 손이 몰래 매수하는 바닥 신호. <strong>DivGate 3일</strong> 이상 연속 같은 부호만 유효 처리합니다.</p>
+          <div class="formula">
+            PV_DivIdx = V_mom_norm - P_mom_norm (20d)<br>
+            S_Div = clip(DivIdx / 3, -1, +1)<br>
+            DivGate: 연속 3일 미만 -> 0 (노이즈 필터)
+          </div>
+          <p style="margin-top:12px; font-size:0.82rem;">
+            <span style="color:var(--positive);">Vol up + Price down:</span> 바닥 &nbsp;|&nbsp;
+            <span style="color:var(--negative);">Vol down + Price up:</span> 천장
+          </p>
+        </div>
+      </div>
+
+      <!-- AND-GEO 결합 -->
+      <div class="card" style="margin-top: 20px; text-align: center; border-color: rgba(79,140,255,0.15);">
+        <h3 style="margin-bottom: 12px;">AND-GEO 결합 규칙</h3>
+        <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; font-size: 0.95rem;">
+          <div style="padding: 16px 24px; border-radius: 10px; background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.15);">
+            <div style="font-weight: 700; color: var(--positive); margin-bottom: 4px;">F > 0 AND D > 0</div>
+            <div style="color: var(--text-secondary); font-size: 0.85rem;">score = sqrt(F x D)</div>
+            <div class="tag tag-green" style="margin-top:6px;">매수 신호</div>
+          </div>
+          <div style="padding: 16px 24px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--border);">
+            <div style="font-weight: 700; color: var(--text-secondary); margin-bottom: 4px;">방향 불일치</div>
+            <div style="color: var(--text-secondary); font-size: 0.85rem;">score = 0</div>
+            <div class="tag" style="background: rgba(123,139,168,0.12); color: var(--text-secondary); margin-top:6px;">무신호</div>
+          </div>
+          <div style="padding: 16px 24px; border-radius: 10px; background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.1);">
+            <div style="font-weight: 700; color: var(--negative); margin-bottom: 4px; text-decoration: line-through;">F &lt; 0 AND D &lt; 0</div>
+            <div style="color: var(--text-secondary); font-size: 0.85rem;">Rev2에서 폐기</div>
+            <div class="tag tag-red" style="margin-top:6px;">매도 제거됨</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 3. 매수 파이프라인 ===== -->
+    <section class="section-header" data-reveal>
+      <div class="section-num">3</div>
+      <h2>매수 신호 생성 파이프라인</h2>
+      <p class="text-secondary" style="margin-top:8px;">7단계 필터링을 거쳐 최종 CONFIRMED 신호 발생</p>
+    </section>
+
+    <section class="container" data-reveal style="margin-bottom: 80px;">
+      <div class="pipeline">
+        <!-- Step 1 -->
+        <div class="pipe-step step-blue">
+          <div class="step-num">1</div>
+          <h3>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>
+            전처리: 실적발표일 거래량 스무딩
+          </h3>
+          <p>yfinance earnings_dates + 3x 중앙값 스파이크 감지 -> 감지된 날짜 +/-1 거래일의 Volume을 20일 rolling median으로 교체</p>
+        </div>
+        <div class="pipe-arrow"></div>
+
+        <!-- Step 2 -->
+        <div class="pipe-step step-blue">
+          <div class="step-num">2</div>
+          <h3>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            서브지표 계산 (S_Force + S_Div)
+          </h3>
+          <p>PV Force MACD 히스토그램 + 가격-거래량 괴리 지수 + DivGate 3일 필터 적용</p>
+        </div>
+        <div class="pipe-arrow"></div>
+
+        <!-- Step 3 -->
+        <div class="pipe-step step-green">
+          <div class="step-num">3</div>
+          <h3>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--positive)" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            AND-GEO 스코어 결합
+          </h3>
+          <div class="formula">F > 0 AND D > 0 -> score = sqrt(F x D) &nbsp; | &nbsp; 그 외 -> 0</div>
+        </div>
+        <div class="pipe-arrow"></div>
+
+        <!-- Step 4 -->
+        <div class="pipe-step step-blue">
+          <div class="step-num">4</div>
+          <h3>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M3 3v18h18"/><polyline points="18 9 12 15 9 12 3 18"/></svg>
+            이벤트 감지
+          </h3>
+          <p>score > 0.025 (bot_th) 연속 구간 탐지 + 5일 쿨다운 이내 재발생시 동일 이벤트로 병합</p>
+        </div>
+        <div class="pipe-arrow"></div>
+
+        <!-- Step 5 -->
+        <div class="pipe-step step-yellow">
+          <div class="step-num">5</div>
+          <h3>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            가격 필터 (ER + ATR)
+          </h3>
+          <div class="formula">ER(20d) &lt; 80퍼센타일 (방향 혼돈) AND ATR(14d) > 40퍼센타일 (변동성 충분)</div>
+          <p style="margin-top:8px;">"방향 없이 출렁이지만 변동성 큰 구간" = 전환점 특성</p>
+        </div>
+        <div class="pipe-arrow"></div>
+
+        <!-- Step 6 -->
+        <div class="pipe-step step-red">
+          <div class="step-num">6</div>
+          <h3>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--negative)" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+            BUY_DD_GATE (하락 확인)
+          </h3>
+          <div class="formula">20일 롤링 최고가 대비 현재가 하락률 >= 3% -> 통과 | &lt; 3% -> 차단</div>
+          <p style="margin-top:8px;">신고점 돌파 직후 과열 구간 진입 방지. Rev1(5%) -> Rev2(3%)로 완화</p>
+        </div>
+        <div class="pipe-arrow"></div>
+
+        <!-- Step 7 -->
+        <div class="pipe-step step-green">
+          <div class="step-num">7</div>
+          <h3>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--positive)" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            Duration 확인 + 중복 제거
+          </h3>
+          <p>1일 이상 지속 -> <span class="tag tag-green">CONFIRMED</span> -> 100% 매수<br>+/-3일 내 동일 신호 중복 제거 -> DB 저장 -> Telegram 알림 + AI 코멘터리</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 4. 파라미터 비교 ===== -->
+    <section class="section-header" data-reveal>
+      <div class="section-num">4</div>
+      <h2>파라미터 비교표</h2>
+      <p class="text-secondary" style="margin-top:8px;">AND-GEO 보수성 -> 후속 파이프라인 전면 완화</p>
+    </section>
+
+    <section class="container" data-reveal style="margin-bottom: 80px;">
+      <div style="overflow-x: auto;">
+        <table class="params-table">
+          <thead>
+            <tr>
+              <th>파라미터</th>
+              <th>Rev1 (C25)</th>
+              <th></th>
+              <th>Rev2 (GEO-OP)</th>
+              <th>변화</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="font-weight:600;">스코어 방식</td>
+              <td>가중합 F45+D30+C25</td>
+              <td class="arrow">-></td>
+              <td class="changed">AND-GEO sqrt(FxD)</td>
+              <td><span class="tag tag-blue">핵심 변경</span></td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">signal_threshold</td>
+              <td>0.15</td>
+              <td class="arrow">-></td>
+              <td class="changed">0.05</td>
+              <td><span class="tag tag-green">완화</span></td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">er_quantile</td>
+              <td>66</td>
+              <td class="arrow">-></td>
+              <td class="changed">80</td>
+              <td><span class="tag tag-green">완화</span></td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">atr_quantile</td>
+              <td>55</td>
+              <td class="arrow">-></td>
+              <td class="changed">40</td>
+              <td><span class="tag tag-green">완화</span></td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">confirm_days</td>
+              <td>3일</td>
+              <td class="arrow">-></td>
+              <td class="changed">1일</td>
+              <td><span class="tag tag-green">완화</span></td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">buy_dd_threshold</td>
+              <td>5%</td>
+              <td class="arrow">-></td>
+              <td class="changed">3%</td>
+              <td><span class="tag tag-green">완화</span></td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">S_Conc (일치도)</td>
+              <td>포함 (25%)</td>
+              <td class="arrow">-></td>
+              <td class="removed">제거</td>
+              <td><span class="tag tag-red">삭제</span></td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">매도 신호</td>
+              <td>사용</td>
+              <td class="arrow">-></td>
+              <td class="removed">제거</td>
+              <td><span class="tag tag-red">삭제</span></td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">divgate_days</td>
+              <td>3일</td>
+              <td class="arrow">-></td>
+              <td>3일</td>
+              <td><span class="tag" style="background:rgba(123,139,168,0.1);color:var(--text-secondary);">유지</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- CHART: Rev1 vs Rev2 비교 -->
+      <div class="chart-wrapper" style="margin-top: 32px;">
+        <div class="chart-card" role="img" aria-label="Rev1과 Rev2의 파라미터 비교 레이더 차트">
+          <h3>파라미터 변화 시각화</h3>
+          <div class="chart-container" style="height: 320px;">
+            <canvas id="radarChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card" role="img" aria-label="적중률 및 CAGR 성과 비교 막대 차트">
+          <h3>성과 비교</h3>
+          <div class="chart-container" style="height: 320px;">
+            <canvas id="perfChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 5. 실험 기록 ===== -->
+    <section class="section-header" data-reveal>
+      <div class="section-num">5</div>
+      <h2>실험 기록 (test_for_upgrade)</h2>
+      <p class="text-secondary" style="margin-top:8px;">44개 파일, 5개 실험 계통</p>
+    </section>
+
+    <section class="container" data-reveal style="margin-bottom: 80px;">
+      <div class="search-bar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="expSearch" placeholder="실험 검색..." oninput="filterExperiments(this.value)">
+      </div>
+
+      <div id="expList">
+        <!-- 계통 1 -->
+        <details class="exp-group" name="experiments" open>
+          <summary>
+            <span class="exp-icon" style="background: var(--accent);">1</span>
+            VN60 4단계 개발
+            <span class="exp-count">Phase 1~4, 6개 파일</span>
+          </summary>
+          <div class="exp-body">
+            <p><strong>Phase 1:</strong> div_clip, force_norm 파라미터 스윕 -> DC2.5/FN2.0 최적값 확인<br>
+            <strong>Phase 2-3:</strong> DivGate 일수 변화에 따른 성능 비교<br>
+            <strong>Phase 4:</strong> 가중합 vs AND-GEO 방법 비교<br>
+            <strong>Phase 4b:</strong> GEO-OP 파이프라인 완화 조합 탐색 (10가지 설정 비교)</p>
+            <p class="result">결과: GEO-OP 프로덕션 설정 확정</p>
+          </div>
+        </details>
+
+        <!-- 계통 2 -->
+        <details class="exp-group" name="experiments">
+          <summary>
+            <span class="exp-icon" style="background: var(--positive);">2</span>
+            AND-GEO 검증
+            <span class="exp-count">2개 파일</span>
+          </summary>
+          <div class="exp-body">
+            <p><strong>geo_op_detail:</strong> GEO-OP 신호 상세 분석 (개별 신호 해부)<br>
+            <strong>geo_op_full_backtest:</strong> 전체 워치리스트 풀 백테스트 검증</p>
+            <p class="result">결과: 249개 신호, 적중률 83.9%, CAGR 12.49%</p>
+          </div>
+        </details>
+
+        <!-- 계통 3 -->
+        <details class="exp-group" name="experiments">
+          <summary>
+            <span class="exp-icon" style="background: var(--warning);">3</span>
+            레버리지 실험
+            <span class="exp-count">10개 파일</span>
+          </summary>
+          <div class="exp-body">
+            <p><strong>grand_analysis:</strong> 1x~4x 레버리지 통합 비교<br>
+            <strong>individual / 3x_individual:</strong> 종목별 최적 레버리지<br>
+            <strong>regime_filter / danger_filter:</strong> 상승/하락장 레짐 + 위험 필터<br>
+            <strong>dd_gate_compare:</strong> DD 게이트별 성능 비교<br>
+            <strong>vs_dca / timeline_chart:</strong> V4 레버리지 vs DCA 비교 + 시각화</p>
+            <p class="result">결과: 1x 기본 유지, 레버리지는 추가 연구 필요</p>
+          </div>
+        </details>
+
+        <!-- 계통 4 -->
+        <details class="exp-group" name="experiments">
+          <summary>
+            <span class="exp-icon" style="background: var(--accent-secondary);">4</span>
+            지표 공식 실험
+            <span class="exp-count">7개 파일</span>
+          </summary>
+          <div class="exp-body">
+            <p><strong>no_conc_test:</strong> S_Conc 제거 효과 (4가지 공식 비교) -> S_Conc 제거 결정 근거<br>
+            <strong>weight_sweep:</strong> F/D/C 가중치 비율 최적화<br>
+            <strong>acc_vs_vel:</strong> 가격 가속도 vs 속도 성능 비교 -> 가속도 채택<br>
+            <strong>vel_multiplier / vel_sweep:</strong> Force MACD 속도 파라미터 최적화<br>
+            <strong>score_formula / concgate:</strong> 스코어 공식 + Conc 게이트 실험</p>
+            <p class="result">결과: S_Conc 제거, 가속도 기반 Force 확정</p>
+          </div>
+        </details>
+
+        <!-- 계통 5 -->
+        <details class="exp-group" name="experiments">
+          <summary>
+            <span class="exp-icon" style="background: var(--negative);">5</span>
+            신호 분석 / 매도 검증
+            <span class="exp-count">8개 파일</span>
+          </summary>
+          <div class="exp-body">
+            <p><strong>signal_anatomy:</strong> 좋은 신호 vs 고점 신호 해부 (QQQ/VOO 차트 생성)<br>
+            <strong>signal_vs_dca:</strong> 신호 기반 매매 vs DCA 비교<br>
+            <strong>sell_signal_analysis / sell_divergence_test:</strong> 매도 신호 무효성 증명<br>
+            <strong>hit_rate_all:</strong> 전체 워치리스트 적중률 분석<br>
+            <strong>vs_random / vs_bootstrap:</strong> 무작위 매수 대비 Edge 검증<br>
+            <strong>watchlist_portfolio:</strong> 워치리스트 포트폴리오 백테스트</p>
+            <p class="result">결과: 매도 28.9% (폐기), 무작위 대비 Edge +10%p 확인</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ===== 6. 설계 철학 ===== -->
+    <section class="section-header" data-reveal>
+      <div class="section-num">6</div>
+      <h2>설계 철학</h2>
+      <p class="text-secondary" style="margin-top:8px;">V4는 타이밍 도구가 아닌 매수 근거 제공 시스템</p>
+    </section>
+
+    <section class="container" data-reveal style="margin-bottom: 48px;">
+      <div class="philosophy-grid">
+        <div class="phil-card phil-blue card">
+          <h3>AND-GEO의 보수성</h3>
+          <p>두 지표가 <strong>반드시 동시에 같은 방향</strong>이어야 신호가 발생합니다. 이 보수성이 후속 파이프라인(임계값, 확인일수, DD 게이트)을 대폭 완화할 수 있는 여유를 만들어, 더 많은 기회를 포착하면서도 정확도를 유지합니다.</p>
+        </div>
+        <div class="phil-card phil-green card">
+          <h3>매도를 안 하는 것이 최선</h3>
+          <p>14가지 매도 전략을 비교한 결과, <strong>"매도하지 않는 것"이 최고 성과</strong>를 냈습니다. 미국 시장의 장기 우상향 특성상, 조기 매도는 수익 기회 상실이며 매도 신호의 90일 정확도는 28.9%로 동전 던지기보다 나쁩니다.</p>
+        </div>
+        <div class="phil-card phil-purple card">
+          <h3>리스크 모니터링 도구</h3>
+          <p>V4는 완벽한 타이밍을 잡는 도구가 아닙니다. <strong>매수 적중률 83.9%</strong>와 무작위 대비 <strong>Edge +10%p</strong>로, 심리적 매수 근거를 제공하고 눌림목에서의 리스크를 모니터링하는 보조 시스템입니다.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 7. 시스템 아키텍처 ===== -->
+    <section class="section-header" data-reveal>
+      <div class="section-num">7</div>
+      <h2>시스템 구조</h2>
+    </section>
+
+    <section class="container" data-reveal style="margin-bottom: 48px;">
+      <div class="card" style="padding: 32px; overflow-x: auto;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; text-align: center;">
+          <div style="padding: 20px; background: var(--pipeline-bg); border-radius: 10px; border: 1px solid var(--border);">
+            <div style="font-weight: 700; margin-bottom: 6px; color: var(--accent); font-size: 0.85rem;">DATA</div>
+            <div style="font-size: 0.9rem;">yfinance<br>OHLCV 3년치</div>
+          </div>
+          <div style="padding: 20px; background: var(--pipeline-bg); border-radius: 10px; border: 1px solid var(--border);">
+            <div style="font-weight: 700; margin-bottom: 6px; color: var(--accent-secondary); font-size: 0.85rem;">ENGINE</div>
+            <div style="font-size: 0.9rem;">real_market<br>_backtest.py</div>
+          </div>
+          <div style="padding: 20px; background: var(--pipeline-bg); border-radius: 10px; border: 1px solid var(--border);">
+            <div style="font-weight: 700; margin-bottom: 6px; color: var(--positive); font-size: 0.85rem;">SCANNER</div>
+            <div style="font-size: 0.9rem;">indicators.py<br>scanner.py</div>
+          </div>
+          <div style="padding: 20px; background: var(--pipeline-bg); border-radius: 10px; border: 1px solid var(--border);">
+            <div style="font-weight: 700; margin-bottom: 6px; color: var(--warning); font-size: 0.85rem;">ALERTS</div>
+            <div style="font-size: 0.9rem;">Telegram<br>HTML 알림</div>
+          </div>
+          <div style="padding: 20px; background: var(--pipeline-bg); border-radius: 10px; border: 1px solid var(--border);">
+            <div style="font-weight: 700; margin-bottom: 6px; color: var(--negative); font-size: 0.85rem;">AI</div>
+            <div style="font-size: 0.9rem;">Claude API<br>코멘터리</div>
+          </div>
+        </div>
+        <div style="text-align: center; margin-top: 16px; font-size: 0.82rem; color: var(--text-secondary);">
+          GitHub Actions (EDT 16:30 / EST 16:30 이중 cron) -> 매일 자동 실행
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <p>V4_wP Rev2 | Volume-Price Fusion Signal System | 2026-03-18</p>
+  </footer>
+
+  <script>
+    // === Menu ===
+    function toggleMenu() {
+      var dropdown = document.getElementById('vizMenuDropdown');
+      if (dropdown) dropdown.classList.toggle('open');
+    }
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.viz-menu')) {
+        var dropdown = document.getElementById('vizMenuDropdown');
+        if (dropdown) dropdown.classList.remove('open');
+      }
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        var dropdown = document.getElementById('vizMenuDropdown');
+        if (dropdown) dropdown.classList.remove('open');
+      }
+    });
+
+    // === Theme ===
+    var savedTheme = localStorage.getItem('viz-theme');
+    var currentTheme = savedTheme || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    function applyTheme(t) {
+      document.documentElement.className = 'theme-' + t;
+      document.getElementById('themeIcon').textContent = t === 'dark' ? '\uD83C\uDF19' : '\u2600\uFE0F';
+      document.getElementById('themeLabel').textContent = t === 'dark' ? 'Dark' : 'Light';
+      localStorage.setItem('viz-theme', t);
+      currentTheme = t;
+      if (typeof onThemeChange === 'function') onThemeChange();
+    }
+    function cycleTheme() { applyTheme(currentTheme === 'dark' ? 'light' : 'dark'); }
+    applyTheme(currentTheme);
+
+    // === Scroll Reveal ===
+    document.querySelectorAll('[data-reveal]').forEach(function(el) { el.classList.add('reveal'); });
+    var revealObserver = new IntersectionObserver(function(entries) {
+      entries.forEach(function(e) { if (e.isIntersecting) { e.target.classList.add('visible'); revealObserver.unobserve(e.target); } });
+    }, { threshold: 0.15 });
+    document.querySelectorAll('.reveal').forEach(function(el) { revealObserver.observe(el); });
+
+    // === Number Counter ===
+    function animateCounters() {
+      document.querySelectorAll('[data-count]').forEach(function(el) {
+        if (el.dataset.counted) return;
+        el.dataset.counted = '1';
+        var target = parseFloat(el.dataset.count);
+        var prefix = el.dataset.prefix || '';
+        var suffix = el.dataset.suffix || '';
+        var start = performance.now();
+        var duration = 1200;
+        (function tick(now) {
+          var p = Math.min((now - start) / duration, 1);
+          var eased = 1 - Math.pow(1 - p, 3);
+          el.textContent = prefix + Math.round(target * eased).toLocaleString() + suffix;
+          if (p < 1) requestAnimationFrame(tick);
+        })(start);
+      });
+    }
+    var counterEl = document.querySelector('[data-count]');
+    if (counterEl) {
+      var cObs = new IntersectionObserver(function(entries) {
+        entries.forEach(function(e) { if (e.isIntersecting) { animateCounters(); cObs.disconnect(); } });
+      }, { threshold: 0.3 });
+      cObs.observe(counterEl);
+    }
+
+    // === Download PNG ===
+    async function downloadImage() {
+      var menu = document.querySelector('.viz-menu');
+      menu.style.display = 'none';
+      try {
+        var url = await htmlToImage.toPng(document.body, { quality: 1, pixelRatio: 2, filter: function(n) { return !n.classList || !n.classList.contains('viz-menu'); } });
+        var a = document.createElement('a'); a.href = url;
+        a.download = 'v4wp-rev2-overview.png'; a.click();
+      } catch(e) { console.error('Download failed:', e); }
+      menu.style.display = '';
+    }
+
+    // === Experiment Search ===
+    function filterExperiments(query) {
+      var q = query.toLowerCase();
+      var groups = document.querySelectorAll('.exp-group');
+      groups.forEach(function(g) {
+        var text = g.textContent.toLowerCase();
+        g.style.display = text.includes(q) ? '' : 'none';
+      });
+    }
+
+    // === Charts ===
+    var chartsBuilt = false;
+
+    function getChartColors() {
+      var s = getComputedStyle(document.documentElement);
+      return {
+        text: s.getPropertyValue('--text').trim(),
+        textSecondary: s.getPropertyValue('--text-secondary').trim(),
+        border: s.getPropertyValue('--border').trim(),
+        surface: s.getPropertyValue('--surface').trim(),
+        accent: s.getPropertyValue('--accent').trim(),
+        positive: s.getPropertyValue('--positive').trim(),
+        negative: s.getPropertyValue('--negative').trim(),
+        warning: s.getPropertyValue('--warning').trim(),
+        accentSecondary: s.getPropertyValue('--accent-secondary').trim()
+      };
+    }
+
+    function resetCanvas(id) {
+      var old = document.getElementById(id);
+      if (!old) return null;
+      var parent = old.parentNode;
+      var canvas = document.createElement('canvas');
+      canvas.id = id;
+      canvas.setAttribute('role', 'img');
+      parent.replaceChild(canvas, old);
+      return canvas;
+    }
+
+    function buildCharts() {
+      if (typeof Chart === 'undefined') return;
+      var c = getChartColors();
+      var isDark = document.documentElement.classList.contains('theme-dark');
+      var gridColor = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)';
+
+      // Radar Chart
+      var radarCtx = resetCanvas('radarChart');
+      if (radarCtx) {
+        radarCtx.setAttribute('aria-label', 'Rev1과 Rev2 파라미터 비교');
+        new Chart(radarCtx, {
+          type: 'radar',
+          data: {
+            labels: ['Signal TH', 'ER Quantile', 'ATR Quantile', 'Confirm Days', 'DD Threshold'],
+            datasets: [
+              {
+                label: 'Rev1 (C25)',
+                data: [0.15, 66, 55, 3, 5],
+                borderColor: c.negative,
+                backgroundColor: isDark ? 'rgba(239,68,68,0.1)' : 'rgba(239,68,68,0.08)',
+                pointBackgroundColor: c.negative,
+                borderWidth: 2, pointRadius: 4
+              },
+              {
+                label: 'Rev2 (GEO-OP)',
+                data: [0.05, 80, 40, 1, 3],
+                borderColor: c.positive,
+                backgroundColor: isDark ? 'rgba(34,197,94,0.1)' : 'rgba(34,197,94,0.08)',
+                pointBackgroundColor: c.positive,
+                borderWidth: 2, pointRadius: 4
+              }
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              tooltip: { enabled: true, padding: 12, cornerRadius: 8 },
+              legend: { labels: { color: c.text, font: { family: 'Noto Sans KR', size: 12 } } }
+            },
+            scales: {
+              r: {
+                ticks: { color: c.textSecondary, backdropColor: 'transparent', font: { size: 10 } },
+                grid: { color: gridColor },
+                angleLines: { color: gridColor },
+                pointLabels: { color: c.textSecondary, font: { size: 11, family: 'Noto Sans KR' } }
+              }
+            }
+          }
+        });
+      }
+
+      // Performance Bar Chart
+      var perfCtx = resetCanvas('perfChart');
+      if (perfCtx) {
+        perfCtx.setAttribute('aria-label', '적중률 및 CAGR 성과 비교');
+        new Chart(perfCtx, {
+          type: 'bar',
+          data: {
+            labels: ['적중률 (90d)', 'CAGR', 'Edge vs Random'],
+            datasets: [
+              {
+                label: 'C25 기준',
+                data: [70.8, 12.49, 10],
+                backgroundColor: isDark ? 'rgba(79,140,255,0.3)' : 'rgba(37,99,235,0.2)',
+                borderColor: c.accent,
+                borderWidth: 1, borderRadius: 6
+              },
+              {
+                label: 'GEO-OP 최종',
+                data: [83.9, 12.49, 10],
+                backgroundColor: isDark ? 'rgba(34,197,94,0.3)' : 'rgba(22,163,74,0.2)',
+                borderColor: c.positive,
+                borderWidth: 1, borderRadius: 6
+              }
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              tooltip: { enabled: true, padding: 12, cornerRadius: 8 },
+              legend: { labels: { color: c.text, font: { family: 'Noto Sans KR', size: 12 } } }
+            },
+            scales: {
+              x: { ticks: { color: c.textSecondary, font: { family: 'Noto Sans KR' } }, grid: { display: false } },
+              y: { ticks: { color: c.textSecondary, callback: function(v) { return v + '%'; } }, grid: { color: gridColor } }
+            },
+            layout: { padding: 10 }
+          }
+        });
+      }
+
+      chartsBuilt = true;
+    }
+
+    function onThemeChange() {
+      chartsBuilt = false;
+      setTimeout(buildCharts, 100);
+    }
+
+    document.addEventListener('DOMContentLoaded', buildCharts);
+  </script>
+</body>
+</html>

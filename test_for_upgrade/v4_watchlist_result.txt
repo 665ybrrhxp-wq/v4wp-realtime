@@ -1,0 +1,119 @@
+======================================================================
+  V4_wP Watchlist Portfolio Backtest ($100 per signal)
+======================================================================
+  Loading cached TSLA data...
+  TSLA: 1558 trading days (2020-01-02 ~ 2026-03-16)
+  TSLA  :  24 signals, avg ret +55.7%, ann +16.0%
+  Loading cached PLTR data...
+  PLTR: 1370 trading days (2020-09-30 ~ 2026-03-16)
+  PLTR  :  13 signals, avg ret +656.0%, ann +233.8%
+  Loading cached NVDA data...
+  NVDA: 1558 trading days (2020-01-02 ~ 2026-03-16)
+  NVDA  :  21 signals, avg ret +405.2%, ann +101.1%
+  Loading cached AVGO data...
+  AVGO: 1558 trading days (2020-01-02 ~ 2026-03-16)
+  AVGO  :  23 signals, avg ret +298.0%, ann +75.9%
+  Loading cached AMZN data...
+  AMZN: 1558 trading days (2020-01-02 ~ 2026-03-16)
+  AMZN  :  16 signals, avg ret +46.3%, ann +14.2%
+  Loading cached GOOGL data...
+  GOOGL: 1558 trading days (2020-01-02 ~ 2026-03-16)
+  GOOGL :  18 signals, avg ret +137.3%, ann +34.8%
+  Loading cached JOBY data...
+  JOBY: 1342 trading days (2020-11-09 ~ 2026-03-16)
+  JOBY  :  11 signals, avg ret +58.8%, ann +24.1%
+  Loading cached HIMS data...
+  HIMS: 1529 trading days (2020-01-02 ~ 2026-03-16)
+  HIMS  :  19 signals, avg ret +94.1%, ann +33.7%
+  Loading cached TEM data...
+  TEM: 438 trading days (2024-06-14 ~ 2026-03-16)
+  TEM   :   0 signals
+  Loading cached RKLB data...
+  RKLB: 1331 trading days (2020-11-24 ~ 2026-03-16)
+  RKLB  :  14 signals, avg ret +883.2%, ann +157.2%
+  Loading cached PGY data...
+  PGY: 1198 trading days (2021-04-21 ~ 2026-03-16)
+  PGY   :  14 signals, avg ret -15.4%, ann -11.6%
+  Loading cached COIN data...
+  COIN: 1236 trading days (2021-04-14 ~ 2026-03-16)
+  COIN  :  11 signals, avg ret +119.6%, ann +42.9%
+  Loading cached HOOD data...
+  HOOD: 1162 trading days (2021-07-29 ~ 2026-03-16)
+  HOOD  :   9 signals, avg ret +430.2%, ann +137.4%
+  Loading cached IONQ data...
+  IONQ: 1305 trading days (2021-01-04 ~ 2026-03-16)
+  IONQ  :  13 signals, avg ret +151.2%, ann +78.7%
+  Loading cached PL data...
+  PL: 1226 trading days (2021-04-26 ~ 2026-03-16)
+  PL    :  11 signals, avg ret +679.5%, ann +207.4%
+  Loading cached ASTS data...
+  ASTS: 1510 trading days (2020-01-03 ~ 2026-03-16)
+  ASTS  :  14 signals, avg ret +1293.9%, ann +168.2%
+  Loading cached CRCL data...
+  CRCL: 195 trading days (2025-06-05 ~ 2026-03-16)
+  CRCL: insufficient data, skip
+  Loading cached SOFI data...
+  SOFI: 1305 trading days (2021-01-04 ~ 2026-03-16)
+  SOFI  :  18 signals, avg ret +125.9%, ann +43.2%
+
+----------------------------------------------------------------------
+  Benchmark: Buy & Hold (°°Àº ±â°£)
+  Loading cached QQQ data...
+  QQQ: 1558 trading days (2020-01-02 ~ 2026-03-16)
+  QQQ: +187.8% total, +18.6% ann (2265d)
+  Loading cached VOO data...
+  VOO: 1558 trading days (2020-01-02 ~ 2026-03-16)
+  VOO: +125.5% total, +14.0% ann (2265d)
+
+----------------------------------------------------------------------
+  Benchmark: Monthly $100 DCA
+  Loading cached QQQ data...
+  QQQ: 1558 trading days (2020-01-02 ~ 2026-03-16)
+  QQQ: $7500 invested -> $12978 (+73.0%), ann +9.2% (75mo)
+  Loading cached VOO data...
+  VOO: 1558 trading days (2020-01-02 ~ 2026-03-16)
+  VOO: $7500 invested -> $11994 (+59.9%), ann +7.8% (75mo)
+
+======================================================================
+  PORTFOLIO SUMMARY
+======================================================================
+  ÃÑ ½ÅÈ£ ¼ö:     249
+  ÃÑ ÅõÀÚ±Ý:      $24,900
+  ÇöÀç Æò°¡±Ý:    $102,932
+  ÃÑ ¼öÀÍ:        $+78,032 (+313.4%)
+  Æò±Õ ¼öÀÍ·ü:    +313.4% (per signal)
+  ½Â·ü:           83.9%
+  Æò±Õ º¸À¯ÀÏ:    845ÀÏ
+  ¿¬Æò±Õ¼öÀÍ·ü:   +84.6%
+
+----------------------------------------------------------------------
+  Ticker Sector    #Sig   Invested      Value        PnL   AvgRet   AnnRet
+  ------ -------- ----- ---------- ---------- ---------- -------- --------
+  PLTR   Tech        13 $    1,300 $    9,828 $   +8,528  +656.0%  +233.8%
+  PL     Space       11 $    1,100 $    8,575 $   +7,475  +679.5%  +207.4%
+  ASTS   Space       14 $    1,400 $   19,514 $  +18,114 +1293.9%  +168.2%
+  RKLB   Growth      14 $    1,400 $   13,765 $  +12,365  +883.2%  +157.2%
+  HOOD   Fintech      9 $      900 $    4,772 $   +3,872  +430.2%  +137.4%
+  NVDA   Tech        21 $    2,100 $   10,610 $   +8,510  +405.2%  +101.1%
+  IONQ   Quantum     13 $    1,300 $    3,265 $   +1,965  +151.2%   +78.7%
+  AVGO   Tech        23 $    2,300 $    9,154 $   +6,854  +298.0%   +75.9%
+  SOFI   Fintech     18 $    1,800 $    4,065 $   +2,265  +125.9%   +43.2%
+  COIN   Fintech     11 $    1,100 $    2,416 $   +1,316  +119.6%   +42.9%
+  GOOGL  Tech        18 $    1,800 $    4,272 $   +2,472  +137.3%   +34.8%
+  HIMS   Growth      19 $    1,900 $    3,687 $   +1,787   +94.1%   +33.7%
+  JOBY   Growth      11 $    1,100 $    1,747 $     +647   +58.8%   +24.1%
+  TSLA   Tech        24 $    2,400 $    3,736 $   +1,336   +55.7%   +16.0%
+  AMZN   Tech        16 $    1,600 $    2,341 $     +741   +46.3%   +14.2%
+  TEM    Growth       0          -          -          -        -        -
+  PGY    Growth      14 $    1,400 $    1,184 $     -216   -15.4%   -11.6%
+
+----------------------------------------------------------------------
+  ¿¬µµº° ½ÅÈ£ ¼º°ú:
+    2021:  31 signals, avg ret +442.8%, win 100%, $3,100 -> $16,826
+    2022:  37 signals, avg ret +367.1%, win 97%, $3,700 -> $17,283
+    2023:  58 signals, avg ret +507.3%, win 98%, $5,800 -> $35,225
+    2024:  52 signals, avg ret +356.0%, win 92%, $5,200 -> $23,710
+    2025:  61 signals, avg ret +45.7%, win 54%, $6,100 -> $8,886
+    2026:  10 signals, avg ret +0.3%, win 40%, $1,000 -> $1,003
+
+======================================================================
