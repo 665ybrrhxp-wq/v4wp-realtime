@@ -1,1 +1,1 @@
-[]
+[{"date": "2026-03-31", "signal_type": "bottom", "close_price": 208.27000427246094, "s_force": 1.0, "s_div": 0.26491174365359993, "s_conc": 0.0, "er": null, "atr_pct": null, "peak_val": 0.5146957777693537, "signal_tier": "CONFIRMED", "action_pct": 1.0, "commentary": null, "detected_date": "2026-04-01", "interpretation": null, "market_regime": "BEAR_WEAK", "direction": "LONG", "squeeze": false}]
