@@ -421,36 +421,8 @@ def calc_v4_score(df, w=20, divgate_days=3):
     score = -sqrt(|S_Force| × |S_Div|) when both < 0 (sell territory)
     score = 0 otherwise (mixed → no signal)
     DivGate: S_Div가 divgate_days일 연속 같은 부호여야 활성화."""
-    n=len(df)
-    pv_div=calc_pv_divergence(df,w)
-    pv_fh=calc_pv_force_macd(df)
-
-    # DivGate: 연속 같은 부호 일수 사전 계산
-    raw_div=np.array([np.clip(pv_div.iloc[i]/3,-1,1) for i in range(n)])
-    consec=np.ones(n)
-    for i in range(1,n):
-        if raw_div[i]>0 and raw_div[i-1]>0:
-            consec[i]=consec[i-1]+1
-        elif raw_div[i]<0 and raw_div[i-1]<0:
-            consec[i]=consec[i-1]+1
-        else:
-            consec[i]=1
-
-    scores=np.zeros(n)
-    for i in range(max(60,w),n):
-        s_div=raw_div[i] if consec[i]>=divgate_days else 0.0
-        fhr_std=pv_fh.iloc[max(0,i-w):i].std()+1e-10
-        s_force=np.clip(pv_fh.iloc[i]/(2*fhr_std),-1,1)
-
-        # AND-GEO: 둘 다 같은 방향일 때만 신호
-        if s_force>0 and s_div>0:
-            scores[i]=np.sqrt(s_force*s_div)
-        elif s_force<0 and s_div<0:
-            scores[i]=-np.sqrt(abs(s_force)*abs(s_div))
-        else:
-            scores[i]=0.0
-
-    return pd.Series(scores,index=df.index,name='V4')
+    subind = calc_v4_subindicators(df, w=w, divgate_days=divgate_days)
+    return subind['score'].rename('V4')
 
 
 def calc_v4_subindicators(df, w=20, divgate_days=3):

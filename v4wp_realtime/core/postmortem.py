@@ -175,6 +175,112 @@ def _judge_persona(conviction, r90):
             return "CORRECT"
 
 
+def run_decay_analysis(conn):
+    """시그널 발동 후 5거래일 스코어 감쇠 분석.
+
+    daily_scores에서 peak_date 이후 5거래일의 score를 조회하여,
+    시그널이 유지되는지(CONFIRMED) 또는 즉시 소멸하는지(FALSE_POSITIVE) 분류.
+
+    분류 기준:
+      - score_5d_avg >= peak_val × 0.50 → CONFIRMED (시그널 유지)
+      - score_5d_avg >= peak_val × 0.20 → FADING (감쇠 중, 관찰 필요)
+      - score_5d_avg <  peak_val × 0.20 → FALSE_POSITIVE (위양성 의심)
+
+    Returns:
+        dict: {"classified": int, "confirmed": int, "fading": int, "false_positive": int}
+    """
+    stats = {"classified": 0, "confirmed": 0, "fading": 0, "false_positive": 0}
+
+    # decay_class가 NULL이고 peak_val > 0인 시그널 조회
+    pending = conn.execute(
+        """SELECT id, ticker, peak_date, peak_val
+           FROM signal_events
+           WHERE decay_class IS NULL AND peak_val > 0"""
+    ).fetchall()
+
+    for sig in pending:
+        sig_id = sig['id']
+        ticker = sig['ticker']
+        peak_date = sig['peak_date']
+        peak_val = sig['peak_val']
+
+        # peak_date 이후 5거래일 score 조회
+        future_scores = conn.execute(
+            """SELECT score, s_force, s_div FROM daily_scores
+               WHERE ticker = ? AND date > ?
+               ORDER BY date ASC LIMIT 5""",
+            (ticker, peak_date)
+        ).fetchall()
+
+        if len(future_scores) < 5:
+            continue  # 아직 5거래일이 경과하지 않음
+
+        scores = [r['score'] for r in future_scores if r['score'] is not None]
+        if not scores:
+            continue
+
+        avg_score = sum(scores) / len(scores)
+        ratio = avg_score / peak_val if peak_val > 0 else 0
+
+        if ratio >= 0.50:
+            decay_class = 'CONFIRMED'
+            stats['confirmed'] += 1
+        elif ratio >= 0.20:
+            decay_class = 'FADING'
+            stats['fading'] += 1
+        else:
+            decay_class = 'FALSE_POSITIVE'
+            stats['false_positive'] += 1
+
+        conn.execute(
+            "UPDATE signal_events SET decay_class = ?, score_5d_avg = ? WHERE id = ?",
+            (decay_class, round(avg_score, 6), sig_id)
+        )
+        stats['classified'] += 1
+
+    if stats['classified'] > 0:
+        conn.commit()
+
+    return stats
+
+
+def get_decay_context(conn, ticker, peak_date):
+    """특정 시그널의 decay 분류 + 5일 스코어 추이를 반환 (AI 해석기용).
+
+    Returns:
+        dict or None: {
+            "decay_class": str,
+            "score_5d_avg": float,
+            "score_trend": [float, ...],  # 5일간 score 리스트
+            "s_force_trend": [float, ...],
+            "s_div_trend": [float, ...],
+        }
+    """
+    row = conn.execute(
+        """SELECT decay_class, score_5d_avg FROM signal_events
+           WHERE ticker = ? AND peak_date = ? AND decay_class IS NOT NULL""",
+        (ticker, peak_date)
+    ).fetchone()
+
+    if not row:
+        return None
+
+    future_scores = conn.execute(
+        """SELECT score, s_force, s_div FROM daily_scores
+           WHERE ticker = ? AND date > ?
+           ORDER BY date ASC LIMIT 5""",
+        (ticker, peak_date)
+    ).fetchall()
+
+    return {
+        "decay_class": row['decay_class'],
+        "score_5d_avg": row['score_5d_avg'],
+        "score_trend": [r['score'] or 0 for r in future_scores],
+        "s_force_trend": [r['s_force'] or 0 for r in future_scores],
+        "s_div_trend": [r['s_div'] or 0 for r in future_scores],
+    }
+
+
 def get_postmortem_stats(conn, ticker=None):
     """Post-mortem 집계 통계.
 

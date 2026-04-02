@@ -26,6 +26,7 @@ sys.path.insert(0, _root)
 from real_market_backtest import (
     download_data, smooth_earnings_volume,
     calc_v4_score, calc_v4_subindicators,
+    detect_signal_events,
     build_price_filter,
 )
 from v4wp_realtime.config.settings import SECTOR_ETF_MAP
@@ -42,7 +43,7 @@ def build_6d(sig):
     dd_pct = sig.get('dd_pct')
     duration = sig.get('duration')
     if dd_pct is not None and duration is not None:
-        dd_norm = min(dd_pct / 30.0, 1.0) if dd_pct else 0
+        dd_norm = min(dd_pct / 0.30, 1.0) if dd_pct else 0  # dd_pct is decimal
         dur_norm = min(duration / 30.0, 1.0) if duration else 0
         return np.array([s_force, s_div, peak_val, ratio, dd_norm, dur_norm])
     return np.array([s_force, s_div, peak_val, ratio])
@@ -61,59 +62,48 @@ def build_8d(sig):
     return v6
 
 
-# ── 시그널 감지 (backtest_forward_returns.py 동일) ──
+# ── 시그널 감지 (production detect_signal_events 기반) ──
 def detect_signals(df, scores, subind, params, price_filter_fn=None):
-    threshold = params.get('signal_threshold', 0.05) * 0.5
+    th = params.get('signal_threshold', 0.05)
     cooldown = params.get('cooldown', 5)
     confirm_days = params.get('confirm_days', 1)
     dd_lookback = params.get('buy_dd_lookback', 20)
     dd_threshold = params.get('buy_dd_threshold', 0.03)
 
-    n = len(df)
-    signals = []
-    last_signal_idx = -cooldown - 1
-    in_zone = False
-    zone_start = zone_peak_idx = 0
-    zone_peak_val = 0
+    raw_events = detect_signal_events(scores, th=th, cooldown=cooldown)
+    buy_events = [e for e in raw_events if e['type'] == 'bottom']
 
-    for i in range(60, n):
-        val = scores.iloc[i]
-        if val > threshold:
-            if not in_zone:
-                in_zone = True
-                zone_start = i
-                zone_peak_idx = i
-                zone_peak_val = val
-            else:
-                if val > zone_peak_val:
-                    zone_peak_idx = i
-                    zone_peak_val = val
-        else:
-            if in_zone:
-                duration = zone_peak_idx - zone_start + 1
-                if duration >= confirm_days:
-                    peak_idx = zone_peak_idx
-                    if peak_idx - last_signal_idx > cooldown:
-                        lb = max(0, peak_idx - dd_lookback)
-                        high_nd = df['Close'].iloc[lb:peak_idx+1].max()
-                        close = df['Close'].iloc[peak_idx]
-                        dd_pct = (high_nd - close) / high_nd if high_nd > 0 else 0
-                        if dd_pct >= dd_threshold:
-                            pf_ok = price_filter_fn(peak_idx) if price_filter_fn else True
-                            if pf_ok:
-                                signals.append({
-                                    'peak_idx': peak_idx,
-                                    'peak_date': df.index[peak_idx].strftime('%Y-%m-%d'),
-                                    'peak_val': float(zone_peak_val),
-                                    'start_val': float(scores.iloc[zone_start]),
-                                    'close_price': float(close),
-                                    's_force': float(subind['s_force'].iloc[peak_idx]),
-                                    's_div': float(subind['s_div'].iloc[peak_idx]),
-                                    'dd_pct': round(dd_pct * 100, 2),
-                                    'duration': duration,
-                                })
-                                last_signal_idx = peak_idx
-                in_zone = False
+    signals = []
+    for ev in buy_events:
+        peak_idx = ev['peak_idx']
+        duration = ev.get('duration', ev['end_idx'] - ev['start_idx'] + 1)
+
+        if duration < confirm_days:
+            continue
+
+        lb = max(0, peak_idx - dd_lookback)
+        high_nd = df['Close'].iloc[lb:peak_idx+1].max()
+        close = df['Close'].iloc[peak_idx]
+        dd_pct = (high_nd - close) / high_nd if high_nd > 0 else 0
+
+        if dd_pct < dd_threshold:
+            continue
+
+        if price_filter_fn and not price_filter_fn(peak_idx):
+            continue
+
+        signals.append({
+            'peak_idx': peak_idx,
+            'peak_date': df.index[peak_idx].strftime('%Y-%m-%d'),
+            'peak_val': float(ev['peak_val']),
+            'start_val': float(ev.get('start_val', 0)),
+            'close_price': float(close),
+            's_force': float(subind['s_force'].iloc[peak_idx]),
+            's_div': float(subind['s_div'].iloc[peak_idx]),
+            'dd_pct': round(dd_pct, 6),
+            'duration': duration,
+        })
+
     return signals
 
 
@@ -405,7 +395,7 @@ def main():
     print('  5. DD 구간별 유사도 예측 정확도 (>90% 유사도)')
     print('=' * 70)
 
-    dd_bins = [(3, 5, 'DD 3-5%'), (5, 10, 'DD 5-10%'), (10, 20, 'DD 10-20%'), (20, 100, 'DD 20%+')]
+    dd_bins = [(0.03, 0.05, 'DD 3-5%'), (0.05, 0.10, 'DD 5-10%'), (0.10, 0.20, 'DD 10-20%'), (0.20, 1.00, 'DD 20%+')]
     print(f'\n  {"DD 구간":>12s}  {"건수":>5s}  {"6D 정확":>8s}  {"8D 정확":>8s}  {"차이":>6s}')
     print(f'  {"-"*12}  {"-"*5}  {"-"*8}  {"-"*8}  {"-"*6}')
 

@@ -239,6 +239,15 @@ def run_scan(alert_fn=None, commentary_fn=None, interpretation_fn=None, dry_run=
                                 context['total_completed'] = pm['total_completed']
                         except Exception:
                             pass
+                    # Signal Decay 컨텍스트 (이전 시그널의 감쇠 분석 결과)
+                    if not dry_run and conn:
+                        try:
+                            from v4wp_realtime.core.postmortem import get_decay_context
+                            dc = get_decay_context(conn, ticker, ev['peak_date'])
+                            if dc:
+                                context['decay_context'] = dc
+                        except Exception:
+                            pass
 
                     if commentary_fn:
                         try:
@@ -283,6 +292,14 @@ def run_scan(alert_fn=None, commentary_fn=None, interpretation_fn=None, dry_run=
 
         except Exception as e:
             results['errors'].append((ticker, str(e)))
+
+    # ── Cross-Ticker 분석: 동시 다발 시그널 감지 ──
+    try:
+        from v4wp_realtime.core.cross_ticker import analyze_market_event
+        market_event = analyze_market_event(results['new_signals'])
+        results['market_event'] = market_event
+    except Exception:
+        results['market_event'] = None
 
     # ── 앨범 전송 (스캔 완료 후 일괄) ──
     if pending_alerts and alert_fn and not dry_run:

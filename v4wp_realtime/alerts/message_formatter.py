@@ -141,6 +141,66 @@ def format_watch_alerts(watch_alerts):
     return '\n'.join(lines)
 
 
+def format_market_event(market_event, signals):
+    """Cross-Ticker Market-Level Event 알림 포맷."""
+    event_type = market_event['event_type']
+    n = market_event['n_signals']
+    n_sec = market_event['n_sectors']
+
+    type_icon = {
+        'MARKET_WIDE': '\U0001f525\U0001f525\U0001f525',
+        'BROAD_SIGNAL': '\U0001f525\U0001f525',
+        'SECTOR_CLUSTER': '\u26a0',
+    }
+    type_label = {
+        'MARKET_WIDE': '매크로 전환점 감지',
+        'BROAD_SIGNAL': '광범위 매수 신호',
+        'SECTOR_CLUSTER': '섹터 집중 신호',
+    }
+    boost_label = {
+        'STRONG': '\U0001f4aa 확신도 상향 (3개+ 섹터 분산)',
+        'MILD': '\U0001f44d 확신도 소폭 상향 (2개 섹터)',
+        'NONE': '\u26a0 동일 섹터 집중 — 상관관계 주의',
+    }
+
+    icon = type_icon.get(event_type, '\U0001f4ca')
+    label = type_label.get(event_type, event_type)
+    boost = boost_label.get(market_event['conviction_boost'], '')
+
+    lines = [
+        f'{icon} <b>Market Event: {label}</b>',
+        '',
+        f'\U0001f4ca <b>{n}종목</b> 동시 매수 신호 | <b>{n_sec}개 섹터</b>',
+    ]
+
+    # 섹터별 종목 표시
+    for sector, tickers in market_event['sectors'].items():
+        lines.append(f'  \u2022 {sector}: {", ".join(tickers)}')
+
+    lines.append('')
+    lines.append(boost)
+
+    regime = market_event.get('regime', 'UNKNOWN')
+    if regime != 'UNKNOWN' and regime != 'MIXED':
+        from v4wp_realtime.core.regime import get_conviction
+        conv = get_conviction(regime)
+        lines.append(f'\U0001f30d 레짐: {regime} ({conv["label_kr"]})')
+
+    # 종목별 요약
+    lines.append('')
+    for s in signals:
+        score = s.get('start_val', s.get('peak_val', 0))
+        dd_pct = s.get('dd_pct', 0)
+        lines.append(
+            f'\U0001f7e2 <b>{s["ticker"]}</b>'
+            f'  <code>${s["close_price"]:>8.2f}</code>'
+            f'  DD <code>{dd_pct:.1%}</code>'
+            f'  {_score_bar(score)}'
+        )
+
+    return '\n'.join(lines)
+
+
 def format_scan_summary(results):
     """스캔 요약 → Telegram HTML 카드."""
     n_new = len(results['new_signals'])
@@ -164,6 +224,17 @@ def format_scan_summary(results):
             for s in results['new_signals']
         )
         lines.append(f'\U0001f7e2 매수 {n_new}건: {tickers}')
+
+        # Market Event 표시
+        me = results.get('market_event')
+        if me:
+            type_label = {
+                'MARKET_WIDE': '\U0001f525 매크로 전환점',
+                'BROAD_SIGNAL': '\U0001f525 광범위 신호',
+                'SECTOR_CLUSTER': '\u26a0 섹터 집중',
+            }
+            lines.append(f'{type_label.get(me["event_type"], "")} '
+                         f'({me["n_sectors"]}개 섹터 동시)')
     else:
         lines.append('\u2705 신규 신호 없음')
 

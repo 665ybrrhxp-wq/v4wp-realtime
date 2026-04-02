@@ -19,84 +19,64 @@ sys.path.insert(0, _root)
 from real_market_backtest import (
     download_data, smooth_earnings_volume,
     calc_v4_score, calc_v4_subindicators,
+    detect_signal_events,
     build_price_filter,
 )
 from v4wp_realtime.config.settings import SECTOR_ETF_MAP
 
 
 def detect_signals(df, scores, subind, params, price_filter_fn=None):
-    """시그널 감지 (프로덕션과 동일 로직).
+    """시그널 감지 — production detect_signal_events() 기반 + DD Gate/Price Filter 후처리.
 
     Returns: list of dict (peak_date, peak_idx, peak_val, s_force, s_div,
                             dd_pct, duration, close_price)
     """
-    threshold = params.get('signal_threshold', 0.05) * 0.5  # bottom threshold
+    th = params.get('signal_threshold', 0.05)
     cooldown = params.get('cooldown', 5)
     confirm_days = params.get('confirm_days', 1)
     dd_lookback = params.get('buy_dd_lookback', 20)
     dd_threshold = params.get('buy_dd_threshold', 0.03)
 
-    n = len(df)
+    # Production 감지 함수 사용 (bottom 시그널만)
+    raw_events = detect_signal_events(scores, th=th, cooldown=cooldown)
+    buy_events = [e for e in raw_events if e['type'] == 'bottom']
+
     signals = []
-    last_signal_idx = -cooldown - 1
+    for ev in buy_events:
+        peak_idx = ev['peak_idx']
+        duration = ev.get('duration', ev['end_idx'] - ev['start_idx'] + 1)
 
-    # 연속 threshold 초과 구간 감지
-    in_zone = False
-    zone_start = 0
-    zone_peak_idx = 0
-    zone_peak_val = 0
+        # Duration 확인
+        if duration < confirm_days:
+            continue
 
-    for i in range(60, n):
-        val = scores.iloc[i]
+        # DD Gate 체크
+        lb = max(0, peak_idx - dd_lookback)
+        high_nd = df['Close'].iloc[lb:peak_idx+1].max()
+        close = df['Close'].iloc[peak_idx]
+        dd_pct = (high_nd - close) / high_nd if high_nd > 0 else 0
 
-        if val > threshold:
-            if not in_zone:
-                in_zone = True
-                zone_start = i
-                zone_peak_idx = i
-                zone_peak_val = val
-            else:
-                if val > zone_peak_val:
-                    zone_peak_idx = i
-                    zone_peak_val = val
-        else:
-            if in_zone:
-                duration = zone_peak_idx - zone_start + 1
+        if dd_pct < dd_threshold:
+            continue
 
-                # Duration 확인
-                if duration >= confirm_days:
-                    peak_idx = zone_peak_idx
+        # Price Filter 체크
+        if price_filter_fn and not price_filter_fn(peak_idx):
+            continue
 
-                    # Cooldown 체크
-                    if peak_idx - last_signal_idx > cooldown:
-                        # DD Gate 체크
-                        lb = max(0, peak_idx - dd_lookback)
-                        high_nd = df['Close'].iloc[lb:peak_idx+1].max()
-                        close = df['Close'].iloc[peak_idx]
-                        dd_pct = (high_nd - close) / high_nd if high_nd > 0 else 0
+        s_force = float(subind['s_force'].iloc[peak_idx])
+        s_div = float(subind['s_div'].iloc[peak_idx])
 
-                        if dd_pct >= dd_threshold:
-                            # Price Filter 체크
-                            pf_ok = price_filter_fn(peak_idx) if price_filter_fn else True
-
-                            if pf_ok:
-                                s_force = float(subind['s_force'].iloc[peak_idx])
-                                s_div = float(subind['s_div'].iloc[peak_idx])
-
-                                signals.append({
-                                    'peak_idx': peak_idx,
-                                    'peak_date': df.index[peak_idx].strftime('%Y-%m-%d'),
-                                    'peak_val': float(zone_peak_val),
-                                    'start_val': float(scores.iloc[zone_start]),
-                                    'close_price': float(close),
-                                    's_force': s_force,
-                                    's_div': s_div,
-                                    'dd_pct': round(dd_pct * 100, 2),
-                                    'duration': duration,
-                                })
-                                last_signal_idx = peak_idx
-
-                in_zone = False
+        signals.append({
+            'peak_idx': peak_idx,
+            'peak_date': df.index[peak_idx].strftime('%Y-%m-%d'),
+            'peak_val': float(ev['peak_val']),
+            'start_val': float(ev.get('start_val', 0)),
+            'close_price': float(close),
+            's_force': s_force,
+            's_div': s_div,
+            'dd_pct': round(dd_pct, 6),
+            'duration': duration,
+        })
 
     return signals
 
@@ -269,13 +249,13 @@ def main():
 
     # ── DD Gate 구간별 성과 ──
     print(f'\n  DD Gate Performance:')
-    dd_bins = [(3, 5), (5, 10), (10, 20), (20, 100)]
+    dd_bins = [(0.03, 0.05), (0.05, 0.10), (0.10, 0.20), (0.20, 1.00)]
     for lo, hi in dd_bins:
         subset = [s for s in completed if lo <= s['dd_pct'] < hi]
         if subset:
             w = sum(1 for s in subset if s['return_90d'] > 0)
             avg = np.mean([s['return_90d'] for s in subset])
-            print(f'    DD {lo:2d}-{hi:2d}%: {len(subset):3d} signals, '
+            print(f'    DD {lo*100:.0f}-{hi*100:.0f}%: {len(subset):3d} signals, '
                   f'win {w}/{len(subset)} ({w/len(subset)*100:.0f}%), '
                   f'avg 90d {avg:+.1f}%')
 
@@ -326,7 +306,7 @@ def main():
         dd_pct = sig.get('dd_pct')
         duration = sig.get('duration')
         if dd_pct is not None and duration is not None:
-            dd_norm = min(dd_pct / 30.0, 1.0) if dd_pct else 0  # dd_pct is in %
+            dd_norm = min(dd_pct / 0.30, 1.0) if dd_pct else 0  # dd_pct is decimal
             dur_norm = min(duration / 30.0, 1.0) if duration else 0
             return np.array([s_force, s_div, peak_val, ratio, dd_norm, dur_norm])
         return np.array([s_force, s_div, peak_val, ratio])

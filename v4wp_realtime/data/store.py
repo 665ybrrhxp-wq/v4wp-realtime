@@ -49,6 +49,9 @@ def migrate_db(conn):
         ("return_90d", "REAL"),
         ("max_dd_90d", "REAL"),
         ("postmortem", "TEXT"),
+        # Signal Decay Tracking
+        ("decay_class", "TEXT"),       # CONFIRMED / FADING / FALSE_POSITIVE
+        ("score_5d_avg", "REAL"),      # 5거래일 평균 score
     ]
     for col_name, col_type in new_columns:
         try:

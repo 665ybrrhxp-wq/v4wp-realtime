@@ -10,7 +10,6 @@
     "HIMS":  {"sector": "Growth"},
     "TEM":   {"sector": "Growth"},
     "RKLB":  {"sector": "Growth"},
-    "PGY":   {"sector": "Growth"},
     "COIN":  {"sector": "Fintech"},
     "HOOD":  {"sector": "Fintech"},
     "IONQ":  {"sector": "Quantum"},

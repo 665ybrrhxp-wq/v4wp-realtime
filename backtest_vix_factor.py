@@ -107,7 +107,7 @@ def collect_signals():
                                     'close_price': float(close),
                                     's_force': float(subind['s_force'].iloc[zpi]),
                                     's_div': float(subind['s_div'].iloc[zpi]),
-                                    'dd_pct': round(dd * 100, 2),
+                                    'dd_pct': round(dd, 6),
                                     'duration': dur,
                                     'ticker': ticker,
                                     'sector': wl['tickers'].get(ticker, {}).get('sector', 'Benchmark'),
@@ -166,7 +166,7 @@ def vec_7d_nopv(s):
     sf, sd = s['s_force'] or 0, s['s_div'] or 0
     pv = s['peak_val'] or 0
     ratio = (s.get('start_val') or 0) / pv if pv > 0 else 0
-    dd = min((s.get('dd_pct') or 0) / 30.0, 1.0)
+    dd = min((s.get('dd_pct') or 0) / 0.30, 1.0)
     dur = min((s.get('duration') or 0) / 30.0, 1.0)
     mkt, sec = s.get('market_return_20d'), s.get('sector_return_20d')
     if mkt is not None and sec is not None:
@@ -178,7 +178,7 @@ def vec_8d_vix(s):
     sf, sd = s['s_force'] or 0, s['s_div'] or 0
     pv = s['peak_val'] or 0
     ratio = (s.get('start_val') or 0) / pv if pv > 0 else 0
-    dd = min((s.get('dd_pct') or 0) / 30.0, 1.0)
+    dd = min((s.get('dd_pct') or 0) / 0.30, 1.0)
     dur = min((s.get('duration') or 0) / 30.0, 1.0)
     mkt = s.get('market_return_20d')
     sec = s.get('sector_return_20d')
@@ -196,7 +196,7 @@ def vec_7d_vix_replace(s):
     sf, sd = s['s_force'] or 0, s['s_div'] or 0
     pv = s['peak_val'] or 0
     ratio = (s.get('start_val') or 0) / pv if pv > 0 else 0
-    dd = min((s.get('dd_pct') or 0) / 30.0, 1.0)
+    dd = min((s.get('dd_pct') or 0) / 0.30, 1.0)
     dur = min((s.get('duration') or 0) / 30.0, 1.0)
     mkt = s.get('market_return_20d')
     vix = s.get('vix_change_20d')

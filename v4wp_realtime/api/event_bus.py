@@ -15,23 +15,27 @@
 """
 import asyncio
 import json
+import threading
 import time
 from typing import Any
 
 # 구독자 목록: set of asyncio.Queue
 _subscribers: set[asyncio.Queue] = set()
+_lock = threading.Lock()
 
 
 def subscribe() -> asyncio.Queue:
     """새 구독자 등록. asyncio.Queue 반환."""
     q: asyncio.Queue = asyncio.Queue(maxsize=64)
-    _subscribers.add(q)
+    with _lock:
+        _subscribers.add(q)
     return q
 
 
 def unsubscribe(q: asyncio.Queue) -> None:
     """구독 해제."""
-    _subscribers.discard(q)
+    with _lock:
+        _subscribers.discard(q)
 
 
 def publish(event_type: str, data: Any = None) -> int:
@@ -49,27 +53,28 @@ def publish(event_type: str, data: Any = None) -> int:
     delivered = 0
     dead = []
 
-    for q in _subscribers:
-        try:
-            q.put_nowait(payload)
-            delivered += 1
-        except asyncio.QueueFull:
-            # 느린 클라이언트는 오래된 이벤트 버리고 최신만
+    with _lock:
+        for q in list(_subscribers):
             try:
-                q.get_nowait()  # 오래된 것 제거
                 q.put_nowait(payload)
                 delivered += 1
+            except asyncio.QueueFull:
+                try:
+                    q.get_nowait()
+                    q.put_nowait(payload)
+                    delivered += 1
+                except Exception:
+                    dead.append(q)
             except Exception:
                 dead.append(q)
-        except Exception:
-            dead.append(q)
 
-    for q in dead:
-        _subscribers.discard(q)
+        for q in dead:
+            _subscribers.discard(q)
 
     return delivered
 
 
 def subscriber_count() -> int:
     """현재 구독자 수."""
-    return len(_subscribers)
+    with _lock:
+        return len(_subscribers)

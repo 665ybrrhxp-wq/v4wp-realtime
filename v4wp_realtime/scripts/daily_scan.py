@@ -140,7 +140,19 @@ def main():
         for ticker, err in results['errors']:
             print(f'    {ticker}: {err}')
 
-    # 3) Watch Alert: DD Gate 근접 종목 알림
+    # 3) Cross-Ticker: Market-Level Event 감지
+    market_event = results.get('market_event')
+    if market_event:
+        print(f'\n  🔥 MARKET EVENT: {market_event["summary"]}')
+
+        if alert_fn:
+            try:
+                from v4wp_realtime.alerts.telegram_bot import send_market_event_alert
+                send_market_event_alert(market_event, results.get('new_signals', []))
+                print(f'  Market event alert sent to Telegram')
+            except Exception as e:
+                print(f'  Market event alert failed: {e}')
+
     watch_alerts = results.get('watch_alerts', [])
     if watch_alerts:
         print(f'\n  Watch Alerts ({len(watch_alerts)}):')
@@ -159,25 +171,34 @@ def main():
             except Exception as e:
                 print(f'\n  Watch alert send failed: {e}')
 
-        # 4) 스캔 리포트 전송 (신호 유무 관계없이)
+        # 5) 스캔 리포트 전송 (신호 유무 관계없이)
         try:
             send_scan_summary(results)
             print(f'\n  Scan report sent to Telegram')
         except Exception as e:
             print(f'\n  Scan report send failed: {e}')
 
-    # 5) Post-Mortem: 기존 시그널의 forward return 업데이트
+    # 6) Post-Mortem: 기존 시그널의 forward return 업데이트
     try:
-        from v4wp_realtime.core.postmortem import run_postmortem
+        from v4wp_realtime.core.postmortem import run_postmortem, run_decay_analysis
         pm_conn = get_connection()
         pm_stats = run_postmortem(pm_conn)
-        pm_conn.close()
         total_pm = pm_stats['updated_5d'] + pm_stats['updated_20d'] + pm_stats['updated_90d']
         if total_pm > 0:
             print(f'\n  Post-Mortem: 5d={pm_stats["updated_5d"]}, '
                   f'20d={pm_stats["updated_20d"]}, 90d={pm_stats["updated_90d"]}')
         else:
             print(f'\n  Post-Mortem: no updates (pending)')
+
+        # Signal Decay 분석: 5거래일 경과 시그널의 감쇠 분류
+        decay_stats = run_decay_analysis(pm_conn)
+        if decay_stats['classified'] > 0:
+            print(f'  Decay Analysis: {decay_stats["classified"]} classified '
+                  f'(✓{decay_stats["confirmed"]} '
+                  f'↘{decay_stats["fading"]} '
+                  f'✗{decay_stats["false_positive"]})')
+
+        pm_conn.close()
     except Exception as e:
         print(f'\n  Post-Mortem error: {e}')
 

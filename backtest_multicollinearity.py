@@ -99,7 +99,7 @@ def main():
                                         's_div': float(subind['s_div'].iloc[zpi]),
                                         'peak_val': float(zpv),
                                         'ratio': float(scores.iloc[zs] / zpv) if zpv > 0 else 0,
-                                        'dd_norm': min(dd * 100 / 30, 1.0),
+                                        'dd_norm': min(dd / 0.30, 1.0),
                                         'dur_norm': min(dur / 30, 1.0),
                                         'mkt_norm': float(np.tanh(mkt / 0.10)),
                                         'sec_norm': float(np.tanh(sec / 0.10)),

@@ -67,6 +67,7 @@ def backfill(years=3, score_days=60):
                     'signal_type': ev['type'],
                     'peak_date': peak_date,
                     'peak_val': float(ev['peak_val']),
+                    'start_val': float(ev.get('start_val', 0)),
                     'close_price': float(df['Close'].iloc[peak_idx]),
                     'detected_date': today,
                     'notified': 1,  # backfill은 이미 알림 처리됨
@@ -76,6 +77,15 @@ def backfill(years=3, score_days=60):
                     's_conc': float(subind['s_conc'].iloc[peak_idx]),
                     'er': None,
                     'atr_pct': None,
+                    'signal_tier': None,
+                    'action_pct': None,
+                    'interpretation': None,
+                    'dd_pct': ev.get('dd_pct'),
+                    'duration': ev.get('duration'),
+                    'market_return_20d': None,
+                    'sector_return_20d': None,
+                    'vix_change_20d': None,
+                    'market_regime': None,
                 }
                 if insert_signal_event(conn, event):
                     n_signals += 1
