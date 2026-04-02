@@ -174,5 +174,33 @@
     "vix_change_20d": 0.0713,
     "market_regime": "BEAR_WEAK",
     "interpretation": null
+  },
+  {
+    "ticker": "PL",
+    "sector": "Space",
+    "signal_type": "bottom",
+    "peak_date": "2026-04-01",
+    "peak_val": 0.16606232850138342,
+    "start_val": 0.10822258882053858,
+    "duration": 6,
+    "close_price": 30.709999084472656,
+    "detected_date": "2026-04-02",
+    "notified": 0,
+    "commentary": null,
+    "s_force": 0.6936236851133546,
+    "s_div": 0.03975743265282916,
+    "s_conc": 0.0,
+    "dd_pct": 0.13175007034595326,
+    "er": null,
+    "atr_pct": null,
+    "signal_tier": "CONFIRMED",
+    "is_strong": true,
+    "signal_label": "BUY (CONFIRMED)",
+    "action_pct": 1.0,
+    "market_return_20d": -0.0421,
+    "sector_return_20d": -0.0939,
+    "vix_change_20d": 0.1603,
+    "market_regime": "BEAR_WEAK",
+    "interpretation": null
   }
 ]
