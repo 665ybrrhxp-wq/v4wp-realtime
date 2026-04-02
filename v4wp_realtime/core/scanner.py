@@ -155,6 +155,7 @@ def run_scan(alert_fn=None, commentary_fn=None, interpretation_fn=None, dry_run=
                     'start_val': float(ev.get('start_val', 0)),
                     'duration': ev.get('duration', ev['end_idx'] - ev['start_idx'] + 1),
                     'close_price': float(df['Close'].iloc[peak_idx]),
+                    'current_price': float(df['Close'].iloc[-1]),
                     'detected_date': today,
                     'notified': 0,
                     'commentary': None,

@@ -3,21 +3,26 @@
 
 def format_signal_compact(signal):
     """사진 캡션용 요약 (단일 신호)."""
-    dd_pct = signal.get('dd_pct', 0.0)
-    dd_icon = _dd_icon(dd_pct)
+    dd_pct = signal.get('dd_pct')
+    dd_str = f'{dd_pct:.1%}' if dd_pct is not None else 'N/A'
+    dd_icon = _dd_icon(dd_pct) if dd_pct is not None else ''
     score = signal.get('start_val', signal.get('peak_val', 0))
     action_pct = signal.get('action_pct')
+
+    cur = signal.get('current_price')
+    sig = signal['close_price']
+    price_line = _price_line(cur, sig)
 
     lines = [
         f'\U0001f7e2 <b>{signal["ticker"]}</b>  BUY',
         '',
-        f'<code>${signal["close_price"]:.2f}</code>  '
-        f'\u2502  DD <code>{dd_pct:.1%}</code> {dd_icon}',
+        f'{price_line}  \u2502  DD <code>{dd_str}</code> {dd_icon}',
         f'Score <code>{score:+.3f}</code> {_score_bar(score)}',
     ]
 
     if action_pct:
-        lines.append(f'\u27a1 <b>{action_pct:.0%} 매수</b>  \u2502  {signal["peak_date"]}')
+        lines.append(f'\u27a1 <b>{action_pct:.0%} 매수</b>')
+    lines.append(f'\U0001f4c5  {signal["peak_date"]}')
 
     return '\n'.join(lines)
 
@@ -28,14 +33,19 @@ def format_signal_message(signal):
     duration = signal.get('duration', 0)
     score_val = signal.get('start_val', signal.get('peak_val', 0))
 
-    dd_pct = signal.get('dd_pct', 0.0)
-    dd_label = _dd_confidence(dd_pct)
+    dd_pct = signal.get('dd_pct')
+    dd_str = f'{dd_pct:.1%}' if dd_pct is not None else 'N/A'
+    dd_label = _dd_confidence(dd_pct) if dd_pct is not None else ''
+
+    cur = signal.get('current_price')
+    sig = signal['close_price']
+    price_line = _price_line(cur, sig)
 
     lines = [
         f'\U0001f7e2 <b>{signal["ticker"]}</b>  BUY',
         '',
-        f'\U0001f4b0 가격       <code>${signal["close_price"]:.2f}</code>',
-        f'\U0001f4c9 낙폭       <code>{dd_pct:.1%}</code>  {dd_label}',
+        f'\U0001f4b0 {price_line}',
+        f'\U0001f4c9 낙폭       <code>{dd_str}</code>  {dd_label}',
         f'\U0001f4ca 스코어    <code>{score_val:+.3f}</code>  {_score_bar(score_val)}',
         f'\u23f1 지속       <code>{duration}일</code>',
         '',
@@ -67,18 +77,32 @@ def format_signals_summary(signals):
         '',
     ]
     for s in signals:
-        dd_pct = s.get('dd_pct', 0.0)
-        dd_icon = _dd_icon(dd_pct)
+        dd_pct = s.get('dd_pct')
+        dd_str = f'{dd_pct:.1%}' if dd_pct is not None else 'N/A'
+        dd_icon = _dd_icon(dd_pct) if dd_pct is not None else ''
         score = s.get('start_val', s.get('peak_val', 0))
+        cur = s.get('current_price', s['close_price'])
         lines.append(
             f'\U0001f7e2 <b>{s["ticker"]}</b>'
-            f'  <code>${s["close_price"]:>8.2f}</code>'
-            f'  DD <code>{dd_pct:.1%}</code>{dd_icon}'
+            f'  <code>${cur:>8.2f}</code>'
+            f'  DD <code>{dd_str}</code>{dd_icon}'
             f'  {_score_bar(score)}'
         )
     lines.append('')
     lines.append('\u2195 종목 버튼 \u2192 차트 + 상세 분석')
     return '\n'.join(lines)
+
+
+def _price_line(current_price, signal_price):
+    """현재가 + 신호가 대비 변동률 표시."""
+    if current_price is not None and current_price != signal_price:
+        chg = (current_price - signal_price) / signal_price
+        arrow = '\u25b2' if chg >= 0 else '\u25bc'
+        return (
+            f'현재 <code>${current_price:.2f}</code>'
+            f'  ({arrow}{chg:+.1%} vs 신호가 ${signal_price:.2f})'
+        )
+    return f'가격 <code>${signal_price:.2f}</code>'
 
 
 def _score_bar(score):
@@ -190,11 +214,13 @@ def format_market_event(market_event, signals):
     lines.append('')
     for s in signals:
         score = s.get('start_val', s.get('peak_val', 0))
-        dd_pct = s.get('dd_pct', 0)
+        dd_pct = s.get('dd_pct')
+        dd_str = f'{dd_pct:.1%}' if dd_pct is not None else 'N/A'
+        cur = s.get('current_price', s['close_price'])
         lines.append(
             f'\U0001f7e2 <b>{s["ticker"]}</b>'
-            f'  <code>${s["close_price"]:>8.2f}</code>'
-            f'  DD <code>{dd_pct:.1%}</code>'
+            f'  <code>${cur:>8.2f}</code>'
+            f'  DD <code>{dd_str}</code>'
             f'  {_score_bar(score)}'
         )
 

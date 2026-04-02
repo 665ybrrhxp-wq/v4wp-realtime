@@ -52,7 +52,7 @@ def analyze_ticker(ticker, df, params):
     divgate_days = params.get('divgate_days', 3)
     earnings_vol_filter = params.get('earnings_vol_filter', True)
     buy_dd_lookback = params.get('buy_dd_lookback', 20)
-    buy_dd_threshold = params.get('buy_dd_threshold', 0.05)
+    buy_dd_threshold = params.get('buy_dd_threshold', 0.03)
 
     # 실적발표일 거래량 스무딩 (전처리)
     if earnings_vol_filter:
