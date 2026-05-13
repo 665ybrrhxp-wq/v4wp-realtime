@@ -54,6 +54,20 @@ def format_signal_message(signal):
         f'\U0001f4d0 Div <code>{signal["s_div"]:+.3f}</code>',
     ]
 
+    # M-3: 레짐 컨텍스트 (역발상 확신도)
+    regime = signal.get('market_regime', 'UNKNOWN')
+    if regime and regime != 'UNKNOWN':
+        try:
+            from v4wp_realtime.core.regime import get_conviction
+            conv = get_conviction(regime)
+            mkt = signal.get('market_return_20d')
+            mkt_str = f'{mkt * 100:+.1f}%' if mkt is not None else 'N/A'
+            lines.append(
+                f'\U0001f30d 레짐  <b>{conv["label_kr"]}</b>  (QQQ 20d {mkt_str})'
+            )
+        except Exception as e:
+            print(f'  [formatter] regime label failed: {e}')
+
     if action_pct:
         lines.append('')
         lines.append(
@@ -65,6 +79,31 @@ def format_signal_message(signal):
     if signal.get('commentary'):
         lines.append('')
         lines.append(f'\U0001f4a1 <i>{signal["commentary"]}</i>')
+
+    # M-2: AI 위원회 (멀티 페르소나 interpretation) 요약 1~2줄
+    interp_raw = signal.get('interpretation')
+    if interp_raw:
+        try:
+            import json as _json
+            interp = _json.loads(interp_raw) if isinstance(interp_raw, str) else interp_raw
+            verdict = interp.get('final_verdict', '')
+            conf = interp.get('confidence_score', 0)
+            chairman = interp.get('chairman') or {}
+            chairman_key = chairman.get('key_point') or chairman.get('summary') or ''
+            chairman_key = str(chairman_key)[:80]
+            verdict_kr = {
+                'STRONG_BUY': '\U0001f525 강력 매수',
+                'BUY': '\u2705 매수',
+                'CAUTIOUS_BUY': '\u26a0 신중 매수',
+                'HOLD': '\u23f8 관망',
+            }.get(verdict, verdict)
+            if verdict:
+                lines.append('')
+                lines.append(f'\U0001f3db <b>{verdict_kr}</b> (확신도 {conf}/100)')
+                if chairman_key:
+                    lines.append(f'\u2937 <i>{chairman_key}</i>')
+        except Exception as e:
+            print(f'  [formatter] interpretation parse failed: {e}')
 
     return '\n'.join(lines)
 
@@ -265,7 +304,13 @@ def format_scan_summary(results):
         lines.append('\u2705 신규 신호 없음')
 
     if n_blocked > 0:
-        lines.append(f'\U0001f6ab DD\uac8c\uc774\ud2b8 \ucc28\ub2e8: {n_blocked}\uac74')
+        blocked = results.get('blocked_buys', [])
+        blocked_str = ', '.join(
+            f'<b>{b["ticker"]}</b>({b.get("dd_pct", 0) * 100:.1f}%)'
+            for b in blocked[:10]
+        )
+        more = f' \u2026+{len(blocked) - 10}' if len(blocked) > 10 else ''
+        lines.append(f'\U0001f6ab DD게이트 차단 {n_blocked}건: {blocked_str}{more}')
 
     n_watch = len(results.get('watch_alerts', []))
     if n_watch > 0:

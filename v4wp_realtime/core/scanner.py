@@ -72,18 +72,18 @@ def run_scan(alert_fn=None, commentary_fn=None, interpretation_fn=None, dry_run=
             etf_df = fetch_data(etf, years=params.get('data_years', 3))
             if etf_df is not None and len(etf_df) >= 40:
                 sector_ret20_map[etf] = etf_df['Close'] / etf_df['Close'].shift(20) - 1.0
-    except Exception:
-        pass
+    except Exception as e:
+        print(f'  [scanner] QQQ/sector ETF fetch failed: {e}')
     try:
-        import yfinance as yf
-        vix_df = yf.download('^VIX', period=f'{params.get("data_years", 3)}y', progress=False)
+        # VIX도 fetch_data 사용해 주식과 동일한 시간축으로 정렬 (D-4)
+        vix_df = fetch_data('^VIX', years=params.get('data_years', 3))
         if vix_df is not None and len(vix_df) >= 40:
             vix_close = vix_df['Close']
             if hasattr(vix_close, 'columns'):
                 vix_close = vix_close.iloc[:, 0]
             vix_change_20d_series = vix_close / vix_close.shift(20) - 1.0
-    except Exception:
-        pass
+    except Exception as e:
+        print(f'  [scanner] VIX fetch failed: {e}')
 
     # 앨범 전송용 배치 수집
     pending_alerts = []  # list of (signal_data, chart_bytes)
@@ -228,8 +228,8 @@ def run_scan(alert_fn=None, commentary_fn=None, interpretation_fn=None, dry_run=
                                 sim_text = build_similar_signals_context(similar)
                                 if sim_text:
                                     context['similar_signals_text'] = sim_text
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            print(f'  [scanner] similarity failed for {ticker}: {e}')
                     # 페르소나 과거 실적 (AI 환류)
                     if not dry_run and conn:
                         try:
@@ -238,8 +238,8 @@ def run_scan(alert_fn=None, commentary_fn=None, interpretation_fn=None, dry_run=
                             if pm.get('total_completed', 0) >= 5:
                                 context['persona_accuracy'] = pm['persona_accuracy']
                                 context['total_completed'] = pm['total_completed']
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            print(f'  [scanner] postmortem stats failed for {ticker}: {e}')
                     # Signal Decay 컨텍스트 (이전 시그널의 감쇠 분석 결과)
                     if not dry_run and conn:
                         try:
@@ -247,14 +247,14 @@ def run_scan(alert_fn=None, commentary_fn=None, interpretation_fn=None, dry_run=
                             dc = get_decay_context(conn, ticker, ev['peak_date'])
                             if dc:
                                 context['decay_context'] = dc
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            print(f'  [scanner] decay context failed for {ticker}: {e}')
 
                     if commentary_fn:
                         try:
                             signal_data['commentary'] = commentary_fn(signal_data, context)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            print(f'  [scanner] commentary failed for {ticker}: {e}')
 
                     # AI 해석기 (Dashboard용 멀티 페르소나)
                     if interpretation_fn:
@@ -265,8 +265,8 @@ def run_scan(alert_fn=None, commentary_fn=None, interpretation_fn=None, dry_run=
                                 signal_data['interpretation'] = _json.dumps(
                                     interp, ensure_ascii=False
                                 )
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            print(f'  [scanner] interpretation failed for {ticker}: {e}')
                     if 'interpretation' not in signal_data:
                         signal_data['interpretation'] = None
 
@@ -286,8 +286,8 @@ def run_scan(alert_fn=None, commentary_fn=None, interpretation_fn=None, dry_run=
                             chart_bytes = generate_signal_chart(
                                 ticker, df, analysis['subindicators'], ev
                             )
-                        except Exception:
-                            pass  # 차트 실패 시 텍스트만 전송
+                        except Exception as e:
+                            print(f'  [scanner] chart generation failed for {ticker}: {e}')
 
                         pending_alerts.append((signal_data, chart_bytes))
 
@@ -299,7 +299,8 @@ def run_scan(alert_fn=None, commentary_fn=None, interpretation_fn=None, dry_run=
         from v4wp_realtime.core.cross_ticker import analyze_market_event
         market_event = analyze_market_event(results['new_signals'])
         results['market_event'] = market_event
-    except Exception:
+    except Exception as e:
+        print(f'  [scanner] cross-ticker analysis failed: {e}')
         results['market_event'] = None
 
     # ── 앨범 전송 (스캔 완료 후 일괄) ──

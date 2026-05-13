@@ -70,7 +70,8 @@ def export_watchlist(conn, wl):
             )
 
         sig_row = conn.execute(
-            """SELECT signal_type, peak_date, signal_tier, s_force, peak_val
+            """SELECT signal_type, peak_date, signal_tier, s_force, peak_val,
+                      CAST(julianday('now') - julianday(peak_date) AS INTEGER) AS age_days
                FROM signal_events
                WHERE ticker = ?
                ORDER BY peak_date DESC LIMIT 1""",
@@ -86,6 +87,7 @@ def export_watchlist(conn, wl):
                 'tier': s['signal_tier'],
                 's_force': _safe(s['s_force']),
                 'peak_val': _safe(s['peak_val']),
+                'age_days': int(s['age_days']) if s['age_days'] is not None else None,
             }
 
         result.append({
@@ -290,7 +292,8 @@ def export_signals(conn, ticker, days=90):
 def export_interpretation(conn, ticker):
     """interpretation/{TICKER}.json — latest AI multi-persona interpretation."""
     row = conn.execute(
-        """SELECT interpretation, peak_date, signal_type, signal_tier
+        """SELECT interpretation, peak_date, signal_type, signal_tier,
+                  CAST(julianday('now') - julianday(peak_date) AS INTEGER) AS age_days
            FROM signal_events
            WHERE ticker = ? AND interpretation IS NOT NULL
            ORDER BY peak_date DESC LIMIT 1""",
@@ -309,6 +312,7 @@ def export_interpretation(conn, ticker):
             'peak_date': row['peak_date'],
             'signal_type': row['signal_type'],
             'signal_tier': row['signal_tier'],
+            'age_days': int(row['age_days']) if row['age_days'] is not None else None,
             'interpretation': interp,
         }
 

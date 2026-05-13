@@ -23,7 +23,7 @@ def generate_commentary(signal, context=None):
         user_prompt = build_prompt(signal, context)
 
         response = client.messages.create(
-            model='claude-haiku-4-5-20241022',
+            model='claude-haiku-4-5',
             max_tokens=100,
             system=SYSTEM_PROMPT,
             messages=[{'role': 'user', 'content': user_prompt}],

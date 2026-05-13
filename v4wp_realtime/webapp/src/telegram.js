@@ -45,17 +45,33 @@ function applyTheme() {
   Object.entries(map).forEach(([k, v]) => root.style.setProperty(k, v));
 }
 
-/** 딥링크 start_param 파싱 (예: "NVDA_2026-03-16") */
+/**
+ * 딥링크 파싱.
+ * 우선순위 1: Telegram start_param (t.me 딥링크 경로) — 예: "NVDA_2026-03-16"
+ * 우선순위 2: URL 쿼리스트링 (web_app 버튼 경로) — 예: "?ticker=NVDA&peak_date=2026-03-16"
+ */
 export function getStartParam() {
-  if (!tg) return null;
-  const raw = tg.initDataUnsafe?.start_param;
-  if (!raw) return null;
-  const sep = raw.indexOf("_");
-  if (sep === -1) return { ticker: raw.toUpperCase() };
-  return {
-    ticker: raw.slice(0, sep).toUpperCase(),
-    peakDate: raw.slice(sep + 1),
-  };
+  const raw = tg?.initDataUnsafe?.start_param;
+  if (raw) {
+    const sep = raw.indexOf("_");
+    if (sep === -1) return { ticker: raw.toUpperCase() };
+    return {
+      ticker: raw.slice(0, sep).toUpperCase(),
+      peakDate: raw.slice(sep + 1),
+    };
+  }
+
+  if (typeof window !== "undefined" && window.location?.search) {
+    const params = new URLSearchParams(window.location.search);
+    const ticker = params.get("ticker");
+    if (ticker) {
+      return {
+        ticker: ticker.toUpperCase(),
+        peakDate: params.get("peak_date") || null,
+      };
+    }
+  }
+  return null;
 }
 
 /** BackButton 표시/숨김 */

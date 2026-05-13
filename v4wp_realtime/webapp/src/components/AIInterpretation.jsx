@@ -43,9 +43,14 @@ export default function AIInterpretation({ ticker }) {
   }, [ticker]);
 
   if (loading || !data?.interpretation) return null;
+  // 31일 초과 신호는 카드 자체를 렌더하지 않음
+  if (data.age_days != null && data.age_days > 30) return null;
 
   const interp = data.interpretation;
   const verdict = VERDICT_STYLE[interp.final_verdict] || VERDICT_STYLE.HOLD;
+  const ageDays = data.age_days;
+  const isStale = ageDays != null && ageDays > 14;
+  const showAgeBadge = ageDays != null && ageDays > 5;
 
   return (
     <div
@@ -54,8 +59,29 @@ export default function AIInterpretation({ ticker }) {
         borderRadius: 10,
         padding: "12px 10px 8px",
         border: "1px solid rgba(255,255,255,0.06)",
+        opacity: isStale ? 0.6 : 1,
       }}
     >
+      {/* Age Warning Badge */}
+      {showAgeBadge && (
+        <div
+          style={{
+            display: "inline-block",
+            padding: "2px 8px",
+            borderRadius: 4,
+            marginBottom: 8,
+            fontSize: 10,
+            fontWeight: 700,
+            background: isStale ? "rgba(136,136,136,0.15)" : "rgba(251,191,36,0.15)",
+            color: isStale ? "#888" : "#fbbf24",
+            border: `1px solid ${isStale ? "#444" : "#92400e40"}`,
+            fontFamily: mono,
+          }}
+        >
+          {ageDays}일 전 신호{isStale ? " — 참고용" : ""}
+        </div>
+      )}
+
       {/* Label */}
       <div
         style={{

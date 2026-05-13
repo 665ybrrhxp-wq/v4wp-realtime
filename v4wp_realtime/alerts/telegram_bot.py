@@ -248,8 +248,13 @@ def _dashboard_button(ticker=None, peak_date=None):
     if TELEGRAM_WEBAPP_URL:
         # web_app 버튼: 텔레그램 내 Mini App으로 직접 오픈
         url = TELEGRAM_WEBAPP_URL.rstrip('/')
+        params = []
         if ticker:
-            url += f'?ticker={ticker}'
+            params.append(f'ticker={ticker}')
+        if peak_date:
+            params.append(f'peak_date={peak_date}')
+        if params:
+            url += '?' + '&'.join(params)
         return [{'text': '\U0001f4f1 Dashboard', 'web_app': {'url': url}}]
     # fallback: t.me 딥링크
     url = _miniapp_url(ticker, peak_date)

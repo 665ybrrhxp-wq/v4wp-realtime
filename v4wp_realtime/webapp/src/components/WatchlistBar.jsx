@@ -101,6 +101,7 @@ export default function WatchlistBar({ items, selected, onSelect, chartCache }) 
                 <SignalBadge
                   direction={item.recent_signal.direction}
                   tier={item.recent_signal.tier}
+                  ageDays={item.recent_signal.age_days}
                 />
               )}
             </div>

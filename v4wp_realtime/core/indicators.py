@@ -19,13 +19,23 @@ from real_market_backtest import (
 
 
 def fetch_data(ticker, years=3, cache_dir=None):
-    """최근 N년 데이터 다운로드"""
-    from datetime import datetime, timedelta
+    """최근 N년 데이터 다운로드 (오늘 봉 포함)."""
+    from datetime import datetime, timedelta, date
     if cache_dir is None:
         cache_dir = str(Path(_project_root) / 'cache')
-    end = datetime.now().strftime('%Y-%m-%d')
+    # yfinance end는 exclusive이므로 내일 날짜를 넘겨 오늘 봉을 포함시킨다.
+    end = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
     start = (datetime.now() - timedelta(days=years * 365)).strftime('%Y-%m-%d')
-    return download_data(ticker, start=start, end=end, cache_dir=cache_dir)
+    df = download_data(ticker, start=start, end=end, cache_dir=cache_dir)
+
+    # 인트라데이 안전장치: 마지막 행이 오늘이고 미국장 마감 전이면 미완성 봉 → drop.
+    # 미국장 마감: EST 21:00 UTC / EDT 20:00 UTC. 보수적으로 21:00 UTC 기준.
+    if df is not None and len(df) > 0:
+        last_idx = df.index[-1]
+        last_date = last_idx.date() if hasattr(last_idx, 'date') else None
+        if last_date == date.today() and datetime.utcnow().hour < 21:
+            df = df.iloc[:-1]
+    return df
 
 
 def analyze_ticker(ticker, df, params):
