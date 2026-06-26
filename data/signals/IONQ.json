@@ -1,1 +1,1 @@
-[]
+[{"date": "2026-06-26", "signal_type": "bottom", "close_price": 49.310001373291016, "s_force": 0.18804739030778295, "s_div": 0.19152829482080494, "s_conc": 0.0, "er": null, "atr_pct": null, "peak_val": 0.18977986197474175, "signal_tier": "CONFIRMED", "action_pct": 1.0, "commentary": null, "detected_date": "2026-06-26", "interpretation": null, "market_regime": "UNKNOWN", "direction": "LONG", "squeeze": false}]
