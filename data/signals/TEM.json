@@ -1,1 +1,1 @@
-[]
+[{"date": "2026-07-27", "signal_type": "bottom", "close_price": 42.90999984741211, "s_force": 0.8605352557864855, "s_div": 0.3189143709438265, "s_conc": 0.0, "er": null, "atr_pct": null, "peak_val": 0.5238674066728449, "signal_tier": "CONFIRMED", "action_pct": 1.0, "commentary": null, "detected_date": "2026-07-28", "interpretation": null, "market_regime": "UNKNOWN", "direction": "LONG", "squeeze": false}]
