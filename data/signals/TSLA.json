@@ -1,1 +1,1 @@
-[]
+[{"date": "2026-11-06", "signal_type": "bottom", "close_price": 358.2200012207031, "s_force": 0.4463084119049366, "s_div": 0.36380143283333183, "s_conc": 0.0, "er": null, "atr_pct": null, "peak_val": 0.4029486812691968, "signal_tier": "CONFIRMED", "action_pct": 1.0, "commentary": null, "detected_date": "2026-11-07", "interpretation": null, "market_regime": "UNKNOWN", "direction": "LONG", "squeeze": false}]
